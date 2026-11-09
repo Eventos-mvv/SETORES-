@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<meta name="theme-color" content="#6e1a26"/>
+<title>Como foi nos assentos?</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --wine:#6e1a26;--wine-2:#8f2433;--wine-tint:#f7eeef;--wine-line:#e9d6d9;
+  --ink:#231719;--muted:#7a6a6c;--paper:#fffdfb;--line:#ece4e2;--ok:#2d6a45;
+}
+html,body{height:100%}
+body{font-family:'Figtree',system-ui,-apple-system,sans-serif;background:var(--paper);color:var(--ink);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer;-webkit-tap-highlight-color:transparent}
+
+/* topo */
+.top{position:fixed;top:0;left:0;right:0;z-index:10;background:var(--paper)}
+.bar{height:3px;background:var(--line)}
+.bar i{display:block;height:3px;width:0;background:var(--wine);transition:width .35s ease}
+.top-row{max-width:560px;margin:0 auto;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;font-size:13px;color:var(--muted)}
+.back{display:flex;align-items:center;gap:6px;padding:6px 8px 6px 0;font-weight:600;color:var(--muted);visibility:hidden}
+.back.on{visibility:visible}
+.back svg{width:16px;height:16px}
+.count{font-variant-numeric:tabular-nums}
+
+/* palco das perguntas */
+.stage{max-width:560px;margin:0 auto;padding:84px 20px 140px;min-height:100%}
+.step{animation:in .32s ease both}
+.step.out{animation:out .18s ease both}
+.step.back-in{animation:inBack .32s ease both}
+@keyframes in{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+@keyframes inBack{from{opacity:0;transform:translateY(-18px)}to{opacity:1;transform:none}}
+@keyframes out{to{opacity:0;transform:translateY(-10px)}}
+@media (prefers-reduced-motion:reduce){.step,.step.out,.step.back-in{animation:none}}
+
+.lead{font-size:14px;color:var(--wine-2);font-weight:600;margin-bottom:10px}
+h1,h2{font-weight:700;letter-spacing:-.015em;line-height:1.22}
+h1{font-size:30px}
+h2{font-size:24px}
+.help{margin-top:8px;font-size:15px;color:var(--muted);line-height:1.45}
+.intro p{font-size:17px;line-height:1.55;color:#4a3b3d;margin-top:16px}
+.intro p+p{margin-top:10px}
+
+/* opções em lista */
+.opts{margin-top:26px;display:flex;flex-direction:column;gap:10px}
+.opt{display:flex;align-items:center;gap:14px;width:100%;text-align:left;padding:15px 16px;border:1.5px solid var(--line);border-radius:14px;background:#fff;font-size:16.5px;font-weight:500;transition:border-color .12s,background .12s,transform .08s}
+.opt:active{transform:scale(.99)}
+.opt .k{flex:0 0 26px;height:26px;border-radius:7px;border:1.5px solid var(--wine-line);display:grid;place-items:center;font-size:12px;font-weight:700;color:var(--wine-2);background:var(--wine-tint)}
+.opt .t{flex:1}
+.opt .ck{width:20px;height:20px;opacity:0;color:var(--wine);transition:opacity .12s}
+.opt[aria-pressed="true"]{border-color:var(--wine);background:var(--wine-tint)}
+.opt[aria-pressed="true"] .k{background:var(--wine);border-color:var(--wine);color:#fff}
+.opt[aria-pressed="true"] .ck{opacity:1}
+@media (hover:hover){.opt:hover{border-color:#d4bfc2}}
+
+/* setores em grade */
+.grid{margin-top:26px;display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.grid .opt{justify-content:center;padding:14px 0;font-size:18px;font-weight:700}
+.grid .opt .k,.grid .opt .ck{display:none}
+.grid .opt[aria-pressed="true"]{background:var(--wine);border-color:var(--wine);color:#fff}
+
+/* nota 0 a 10 */
+.nps{margin-top:28px;display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+.nps button{height:54px;border:1.5px solid var(--line);border-radius:12px;background:#fff;font-size:19px;font-weight:700;font-variant-numeric:tabular-nums;transition:all .12s}
+.nps button[aria-pressed="true"]{background:var(--wine);border-color:var(--wine);color:#fff}
+.nps-ends{display:flex;justify-content:space-between;margin-top:10px;font-size:13px;color:var(--muted)}
+@media (min-width:520px){.nps{grid-template-columns:repeat(11,1fr)}.nps button{height:50px;font-size:17px}}
+
+/* texto livre */
+textarea,input[type=text]{width:100%;margin-top:24px;border:none;border-bottom:2px solid var(--wine-line);background:transparent;padding:10px 2px;font:500 19px 'Figtree',sans-serif;color:var(--ink);outline:none;resize:none;line-height:1.45;transition:border-color .15s}
+textarea{min-height:120px}
+textarea:focus,input[type=text]:focus{border-color:var(--wine)}
+::placeholder{color:#b6a7a9}
+
+/* rodapé de ação */
+.foot{position:fixed;left:0;right:0;bottom:0;z-index:10;background:linear-gradient(to top,var(--paper) 70%,rgba(255,253,251,0));padding:24px 20px calc(18px + env(safe-area-inset-bottom))}
+.foot-in{max-width:560px;margin:0 auto;display:flex;align-items:center;gap:14px}
+.go{padding:15px 26px;border-radius:12px;background:var(--wine);color:#fff;font-size:16px;font-weight:700;transition:opacity .15s,background .15s}
+.go:disabled{opacity:.35;cursor:default}
+.go:not(:disabled):active{background:var(--wine-2)}
+.skip{font-size:15px;font-weight:600;color:var(--muted);padding:12px 4px}
+.hint{font-size:13px;color:var(--muted);margin-left:auto}
+.msg{font-size:14px;color:#a3262f;margin-top:14px;min-height:20px}
+.hidden{display:none!important}
+
+:focus-visible{outline:3px solid #dca9b0;outline-offset:2px;border-radius:10px}
+
+/* fim */
+.end{text-align:left;padding-top:20px}
+.end .seal{width:56px;height:56px;border-radius:50%;background:var(--wine);color:#fff;display:grid;place-items:center;margin-bottom:22px}
+.end .seal svg{width:26px;height:26px}
+
+/* ===== resultados ===== */
+.res{max-width:760px;margin:0 auto;padding:36px 20px 80px}
+.res h1{font-size:26px}
+.res .sub{color:var(--muted);margin-top:6px;font-size:14px}
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:24px 0 8px}
+.kpi{border:1px solid var(--line);border-radius:14px;padding:16px;background:#fff}
+.kpi b{display:block;font-size:30px;font-weight:800;color:var(--wine);font-variant-numeric:tabular-nums}
+.kpi span{font-size:13px;color:var(--muted)}
+.blk{margin-top:30px}
+.blk h3{font-size:15px;font-weight:700;margin-bottom:12px}
+.row{display:grid;grid-template-columns:minmax(130px,1.3fr) 2fr 40px;gap:12px;align-items:center;font-size:14px;padding:6px 0}
+.track{height:8px;background:var(--wine-tint);border-radius:5px;overflow:hidden}
+.fill{height:8px;background:var(--wine-2);border-radius:5px}
+.row .v{text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
+.quote{border-left:3px solid var(--wine-line);padding:4px 0 4px 14px;margin-bottom:14px;font-size:15px;line-height:1.5}
+.quote small{display:block;color:var(--muted);font-size:12.5px;margin-top:3px}
+.empty{color:var(--muted);font-size:14px}
+.res .go{margin-top:30px}
+@media (max-width:480px){.kpis{grid-template-columns:1fr 1fr}.row{grid-template-columns:1fr 1.4fr 34px}}
+</style>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+</head>
+<body>
+
+<div id="survey">
+  <div class="top">
+    <div class="bar"><i id="bar"></i></div>
+    <div class="top-row">
+      <button class="back" id="back" type="button" aria-label="Voltar">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3 5 8l5 5"/></svg>Voltar
+      </button>
+      <span class="count" id="count"></span>
+    </div>
+  </div>
+  <main class="stage"><div id="step" class="step"></div></main>
+  <div class="foot" id="foot">
+    <div class="foot-in">
+      <button class="go" id="go" type="button">Continuar</button>
+      <button class="skip hidden" id="skip" type="button">Pular</button>
+      <span class="hint" id="hint"></span>
+    </div>
+  </div>
+</div>
+
+<div id="results" class="hidden"></div>
+
+<script>
+// Troque a cada evento
+var EVENTO = 'Conferência — Sistema de Assentos';
+var CAMINHO = 'pesquisa_setores/respostas';
+
+firebase.initializeApp({
+  apiKey: "AIzaSyCA0XbDGdmRj-WjlUw08Vg2dnWiR9dyHRo",
+  authDomain: "check-in-18803.firebaseapp.com",
+  databaseURL: "https://check-in-18803-default-rtdb.firebaseio.com",
+  projectId: "check-in-18803",
+  storageBucket: "check-in-18803.firebasestorage.app",
+  messagingSenderId: "403345825446",
+  appId: "1:403345825446:web:72f4b55bc9117090391e67"
+});
+var db = firebase.database();
+
+var NOTAS = ['Muito ruim','Ruim','Mais ou menos','Bom','Muito bom'];
+var PARTES = [
+  ['entrar','entrar com seu nome e setor?'],
+  ['busca','achar a pessoa pela busca?'],
+  ['marcar','marcar e desmarcar a presença?'],
+  ['mapa','entender o mapa e a grade dos assentos?']
+];
+
+var STEPS = [
+  {id:'intro', type:'intro'},
+  {id:'setores', type:'grid', skip:true, title:'Em qual setor você ficou?', help:'Se rodou por mais de um, marca todos.',
+    opts:['A','B','C','D','E','F','G','H','I','J','K','L','M','N','S','T']},
+  {id:'celular', type:'single', skip:true, title:'E usou qual celular?',
+    opts:['Android','iPhone','Tablet ou outro']},
+  {id:'nps', type:'nps', req:true, title:'De 0 a 10, quanto você gostaria de usar esse sistema de novo no próximo evento?'}
+].concat(PARTES.map(function(p,i){
+  return {id:'nota_'+p[0], key:p[0], type:'rate', req:true, lead:'Como foi '+(i+1)+' de '+PARTES.length, title:p[1]};
+})).concat([
+  {id:'tempo', type:'single', skip:true, title:'Pra achar uma pessoa e marcar, levava mais ou menos quanto tempo?',
+    opts:['Menos de 10 segundos','De 10 a 30 segundos','Entre 30 segundos e 1 minuto','Mais de 1 minuto']},
+  {id:'problemas', type:'multi', skip:true, title:'Aconteceu alguma dessas coisas com você?', help:'Marca tudo que aconteceu.', none:'Não, deu tudo certo',
+    opts:['Ficou lento ou travou','Apareceu "Sem conexão"','Saí do sistema quando o celular bloqueou ou atualizei a página','Marquei alguém sem querer','Procurei um nome e não achou','Tinha nome repetido e fiquei na dúvida','A busca trouxe a pessoa errada','A pessoa estava sentada em outro lugar','Não consegui entrar como Supervisor','A letra é pequena demais','A bateria acabou','Não, deu tudo certo']},
+  {id:'desejos', type:'multi', max:3, skip:true, title:'Se a gente pudesse colocar 3 coisas novas, quais você escolheria?',
+    opts:['Mostrar a fileira e a posição do assento','Mostrar uma lista quando tem nomes parecidos','Pedir confirmação antes de desmarcar','Ver quem marcou e a que horas','Ler o QR Code do participante','Funcionar sem internet','Baixar a lista de presença','Letra maior / tela clara','Trocar a pessoa de assento pelo sistema']},
+  {id:'ajudou', type:'text', skip:true, title:'O que mais te ajudou no dia?', ph:'Pode escrever do seu jeito'},
+  {id:'mudaria', type:'text', send:true, title:'E se você pudesse mudar uma coisa só, o que seria?', ph:'O que atrapalhou e como ficaria melhor'},
+  {id:'fim', type:'end'}
+]);
+
+var A = {setores:[], celular:null, nps:null, notas:{}, tempo:null, problemas:[], desejos:[], ajudou:'', mudaria:''};
+var idx = 0, sending = false, autoTimer = null;
+var $ = function(id){ return document.getElementById(id); };
+var CHECK = '<svg class="ck" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m4.5 10.5 3.5 3.5 7.5-8"/></svg>';
+var LETRAS = 'ABCDEFGHIJKL';
+
+function valor(s){
+  if(s.type==='rate') return A.notas[s.key]||null;
+  return A[s.id];
+}
+function respondida(s){
+  var v=valor(s);
+  if(Array.isArray(v)) return v.length>0;
+  if(typeof v==='string') return v.trim().length>0;
+  return v!==null && v!==undefined;
+}
+
+function render(dir){
+  clearTimeout(autoTimer);
+  var s=STEPS[idx], box=$('step');
+  box.className='step'+(dir<0?' back-in':'');
+  void box.offsetWidth;
+
+  var perguntas=STEPS.length-2, n=Math.min(Math.max(idx,0),perguntas);
+  $('bar').style.width=(s.type==='end'?100:Math.round(n/perguntas*100))+'%';
+  $('count').textContent=(s.type==='intro'||s.type==='end')?'':idx+' de '+perguntas;
+  $('back').classList.toggle('on', idx>0 && s.type!=='end');
+
+  var h='';
+  if(s.type==='intro'){
+    h='<div class="intro"><div class="lead">Coordenação de Eventos</div>'
+     +'<h1>Fala, pessoal. Tudo bem?</h1>'
+     +'<p>Queremos saber como foi usar o sistema de assentos: o que funcionou, o que travou, o que poderíamos melhorar para as próximas atuações.</p>'
+     +'<p>São perguntas rápidas e não precisa se identificar.</p></div>';
+  } else if(s.type==='end'){
+    h='<div class="end"><div class="seal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></div>'
+     +'<h1>Recebido. Valeu demais!</h1><p class="help" style="font-size:17px;margin-top:12px">Vamos ler tudo com calma antes do próximo evento.</p></div>';
+  } else {
+    if(s.lead) h+='<div class="lead">'+s.lead+'</div>';
+    h+='<h2 id="q">'+(s.type==='rate'?'Como foi '+s.title:s.title)+'</h2>';
+    if(s.help) h+='<p class="help">'+s.help+'</p>';
+    if(s.type==='single'||s.type==='multi'||s.type==='rate'){
+      var opts=s.type==='rate'?NOTAS:s.opts;
+      h+='<div class="opts" role="group" aria-labelledby="q">';
+      opts.forEach(function(o,i){
+        var k=s.type==='rate'?(i+1):LETRAS[i];
+        h+='<button type="button" class="opt" data-i="'+i+'"><span class="k">'+k+'</span><span class="t">'+o+'</span>'+CHECK+'</button>';
+      });
+      h+='</div>';
+    } else if(s.type==='grid'){
+      h+='<div class="grid" role="group" aria-labelledby="q">';
+      s.opts.forEach(function(o,i){ h+='<button type="button" class="opt" data-i="'+i+'">'+o+'</button>'; });
+      h+='</div>';
+    } else if(s.type==='nps'){
+      h+='<div class="nps" role="group" aria-labelledby="q">';
+      for(var i=0;i<=10;i++) h+='<button type="button" data-i="'+i+'" aria-label="'+i+'">'+i+'</button>';
+      h+='</div><div class="nps-ends"><span>0 · de jeito nenhum</span><span>10 · com certeza</span></div>';
+    } else if(s.type==='text'){
+      h+='<textarea id="txt" maxlength="800" placeholder="'+s.ph+'" aria-labelledby="q"></textarea>';
+    } else if(s.type==='name'){
+      h+='<input type="text" id="txt" maxlength="80" autocomplete="name" placeholder="'+s.ph+'" aria-labelledby="q"/>';
+    }
+    h+='<div class="msg" id="msg" role="alert"></div>';
+  }
+  box.innerHTML=h;
+  marcar();
+  ligar(s);
+  rodape(s);
+  window.scrollTo(0,0);
+  var t=$('txt'); if(t){ t.value=A[s.id]||''; if(window.matchMedia('(hover:hover)').matches) t.focus(); }
+}
+
+function marcar(){
+  var s=STEPS[idx], v=valor(s);
+  document.querySelectorAll('#step [data-i]').forEach(function(b){
+    var i=+b.dataset.i, on;
+    if(s.type==='nps') on=(v===i);
+    else if(s.type==='rate') on=(v===i+1);
+    else if(Array.isArray(v)) on=v.indexOf(s.opts[i])>=0;
+    else on=(v===s.opts[i]);
+    b.setAttribute('aria-pressed', on?'true':'false');
+  });
+}
+
+function escolher(i){
+  var s=STEPS[idx];
+  if(s.type==='multi'||s.type==='grid'){
+    var arr=A[s.id], o=s.opts[i], at=arr.indexOf(o);
+    if(at>=0){ arr.splice(at,1); }
+    else{
+      if(s.max && arr.length>=s.max){ aviso('Escolhe até '+s.max+'. Tira uma pra trocar.'); return; }
+      if(s.none){
+        if(o===s.none) arr.length=0;
+        else { var z=arr.indexOf(s.none); if(z>=0) arr.splice(z,1); }
+      }
+      arr.push(o);
+    }
+    marcar(); rodape(s);
+    return;
+  }
+  if(s.type==='nps') A.nps=i;
+  else if(s.type==='rate') A.notas[s.key]=i+1;
+  else A[s.id]=s.opts[i];
+  marcar(); rodape(s);
+  autoTimer=setTimeout(avancar, 280); // escolha única: segue sozinho
+}
+
+function ligar(s){
+  document.querySelectorAll('#step [data-i]').forEach(function(b){
+    b.addEventListener('click',function(){ escolher(+b.dataset.i); });
+  });
+  var t=$('txt');
+  if(t) t.addEventListener('input',function(){ A[s.id]=t.value; rodape(s); });
+}
+
+function rodape(s){
+  var go=$('go'), skip=$('skip'), hint=$('hint');
+  $('foot').classList.remove('hidden');
+  skip.classList.add('hidden'); go.classList.remove('hidden'); hint.textContent=''; go.disabled=false;
+  if(s.type==='intro'){ go.textContent='Começar'; return; }
+  if(s.type==='end'){ $('foot').classList.add('hidden'); return; }
+  if(s.send){ go.textContent=sending?'Enviando...':'Enviar'; go.disabled=sending; return; }
+  var ok=respondida(s);
+  go.textContent='Continuar';
+  if(s.req && !ok) go.disabled=true;
+  if(s.skip && !ok){ skip.classList.remove('hidden'); go.classList.add('hidden'); }
+  else go.classList.remove('hidden');
+  if(s.max){ hint.textContent=A[s.id].length+' de '+s.max; }
+  if(s.req && !ok && window.matchMedia('(hover:hover)').matches){
+    hint.textContent = s.type==='rate'?'ou tecle 1 a 5':(s.type==='single'?'ou tecle a letra':'');
+  }
+}
+
+function aviso(m){ var e=$('msg'); if(!e) return; e.textContent=m; setTimeout(function(){ if(e.textContent===m) e.textContent=''; },2600); }
+
+function trocar(novo, dir){
+  var box=$('step');
+  box.classList.add('out');
+  setTimeout(function(){ idx=novo; render(dir); }, 170);
+}
+function avancar(){
+  var s=STEPS[idx];
+  if(s.req && !respondida(s)) return;
+  if(s.send){ enviar(); return; }
+  if(idx<STEPS.length-1) trocar(idx+1, 1);
+}
+function voltar(){ if(idx>0) trocar(idx-1, -1); }
+
+$('go').addEventListener('click', avancar);
+$('skip').addEventListener('click', function(){ trocar(idx+1, 1); });
+$('back').addEventListener('click', voltar);
+
+document.addEventListener('keydown', function(e){
+  if($('survey').classList.contains('hidden')) return;
+  var s=STEPS[idx], tag=(e.target.tagName||'').toLowerCase();
+  if(e.key==='Enter' && tag!=='textarea' && tag!=='button'){ e.preventDefault(); avancar(); return; }
+  if(tag==='textarea'||tag==='input') return;
+  var k=e.key.toUpperCase();
+  if(s.type==='rate' && /^[1-5]$/.test(k)) escolher(+k-1);
+  else if((s.type==='single'||s.type==='multi') && LETRAS.indexOf(k)>=0 && LETRAS.indexOf(k)<s.opts.length) escolher(LETRAS.indexOf(k));
+  else if(s.type==='nps' && /^[0-9]$/.test(k)) escolher(+k);
+});
+
+function enviar(){
+  if(sending) return;
+  sending=true; rodape(STEPS[idx]);
+  var dados={
+    evento:EVENTO, setores:A.setores, celular:A.celular||'',
+    nps:A.nps, notas:A.notas, tempo:A.tempo||'', problemas:A.problemas, desejos:A.desejos,
+    ajudou:(A.ajudou||'').trim(), mudaria:(A.mudaria||'').trim(),
+    criadoEm:firebase.database.ServerValue.TIMESTAMP
+  };
+  var limite=setTimeout(function(){ falhou('Sem internet agora. Confere a conexão e toca em Enviar de novo.'); },12000);
+  db.ref(CAMINHO).push(dados).then(function(){
+    clearTimeout(limite);
+    try{ localStorage.setItem('pesquisa_setores_enviada', EVENTO); }catch(e){}
+    sending=false; trocar(STEPS.length-1, 1);
+  }).catch(function(err){ clearTimeout(limite); console.error(err); falhou('Não foi dessa vez. Tenta enviar de novo daqui a pouco.'); });
+}
+function falhou(m){ sending=false; rodape(STEPS[idx]); aviso(m); }
+
+// ======================= RESULTADOS (?resultados) =======================
+var linhas=[];
+function esc(s){ var d=document.createElement('div'); d.textContent=s==null?'':String(s); return d.innerHTML; }
+
+function iniciarResultados(){
+  $('survey').classList.add('hidden');
+  var r=$('results'); r.classList.remove('hidden');
+  r.innerHTML='<div class="res"><h1>O que os voluntários acharam</h1><p class="sub">'+esc(EVENTO)+' · atualiza sozinho</p>'
+    +'<div class="kpis"><div class="kpi"><b id="kT">–</b><span>respostas</span></div><div class="kpi"><b id="kN">–</b><span>NPS</span></div><div class="kpi"><b id="kM">–</b><span>média das partes (1 a 5)</span></div></div>'
+    +'<div class="blk"><h3>Cada parte do sistema</h3><div id="rP"></div></div>'
+    +'<div class="blk"><h3>Problemas que aconteceram</h3><div id="rPr"></div></div>'
+    +'<div class="blk"><h3>O que pedem pra entrar</h3><div id="rD"></div></div>'
+    +'<div class="blk"><h3>Tempo por pessoa</h3><div id="rT"></div></div>'
+    +'<div class="blk"><h3>O que mais ajudou</h3><div id="rA"></div></div>'
+    +'<div class="blk"><h3>O que mudariam</h3><div id="rM"></div></div>'
+    +'<button class="go" id="csv" type="button">Baixar planilha</button></div>';
+  $('csv').addEventListener('click', csv);
+  db.ref(CAMINHO).on('value', function(snap){
+    var v=snap.val()||{};
+    linhas=Object.keys(v).map(function(k){return v[k]}).filter(function(x){return x.evento===EVENTO});
+    pintar();
+  });
+}
+function barras(id, mapa, escala){
+  var c=$(id), it=Object.keys(mapa).map(function(k){return [k,mapa[k]]}).sort(function(a,b){return b[1]-a[1]});
+  if(!it.length){ c.innerHTML='<p class="empty">Nada ainda.</p>'; return; }
+  var max=escala||Math.max.apply(null,it.map(function(x){return x[1]}));
+  c.innerHTML=it.map(function(x){
+    return '<div class="row"><span>'+esc(x[0])+'</span><div class="track"><div class="fill" style="width:'+(x[1]/max*100)+'%"></div></div><span class="v">'+(escala?x[1].toFixed(1):x[1])+'</span></div>';
+  }).join('');
+}
+function conta(campo, multi){ var o={}; linhas.forEach(function(r){ (multi?(r[campo]||[]):[r[campo]]).forEach(function(v){ if(v) o[v]=(o[v]||0)+1; }); }); return o; }
+function falas(id, campo){
+  var l=linhas.filter(function(r){return r[campo]}).sort(function(a,b){return (b.criadoEm||0)-(a.criadoEm||0)});
+  $(id).innerHTML=l.length?l.map(function(r){
+    return '<div class="quote">'+esc(r[campo])+(r.setores&&r.setores.length?'<small>Setor '+esc(r.setores.join(', '))+'</small>':'')+'</div>';
+  }).join(''):'<p class="empty">Ninguém escreveu ainda.</p>';
+}
+function pintar(){
+  var n=linhas.length; $('kT').textContent=n;
+  if(n){
+    var pro=linhas.filter(function(r){return r.nps>=9}).length, det=linhas.filter(function(r){return r.nps<=6}).length;
+    $('kN').textContent=Math.round((pro-det)/n*100);
+  }
+  var med={}, soma=0, q=0;
+  PARTES.forEach(function(p){
+    var v=linhas.map(function(r){return r.notas&&r.notas[p[0]]}).filter(Boolean);
+    if(v.length){ var m=v.reduce(function(a,b){return a+b},0)/v.length; var nome=p[1].replace('?',''); med[nome.charAt(0).toUpperCase()+nome.slice(1)]=m; soma+=m; q++; }
+  });
+  if(q) $('kM').textContent=(soma/q).toFixed(1);
+  barras('rP', med, 5);
+  barras('rPr', conta('problemas',true));
+  barras('rD', conta('desejos',true));
+  barras('rT', conta('tempo'));
+  falas('rA','ajudou'); falas('rM','mudaria');
+}
+function csv(){
+  var cab=['data','setores','celular','nps'].concat(PARTES.map(function(p){return p[0]})).concat(['tempo','problemas','desejos','ajudou','mudaria']);
+  var q=function(s){ s=s==null?'':String(s); return '"'+s.replace(/"/g,'""')+'"'; };
+  var linhasCsv=[cab.join(';')].concat(linhas.map(function(r){
+    return [r.criadoEm?new Date(r.criadoEm).toLocaleString('pt-BR'):'', (r.setores||[]).join(', '), r.celular, r.nps]
+      .concat(PARTES.map(function(p){return r.notas?r.notas[p[0]]:''}))
+      .concat([r.tempo, (r.problemas||[]).join(' | '), (r.desejos||[]).join(' | '), r.ajudou, r.mudaria]).map(q).join(';');
+  }));
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob(['﻿'+linhasCsv.join('\n')],{type:'text/csv;charset=utf-8'}));
+  a.download='pesquisa-sistema-assentos.csv'; a.click();
+}
+
+// ======================= início =======================
+if(location.search.indexOf('resultados')>=0){ iniciarResultados(); }
+else{
+  var ja=null; try{ ja=localStorage.getItem('pesquisa_setores_enviada'); }catch(e){}
+  if(ja===EVENTO){
+    idx=STEPS.length-1; render(1);
+    document.querySelector('.end h1').textContent='Você já respondeu por aqui. Valeu!';
+  } else render(1);
+}
+</script>
+</body>
+</html>
