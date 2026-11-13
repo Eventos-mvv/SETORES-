@@ -344,6 +344,18 @@ input[type=search]::-webkit-search-cancel-button,input[type=search]::-webkit-sea
 /* Capa do app no topo das telas de entrada */
 .capa{display:block;width:100%;height:auto;aspect-ratio:1200/630;border-radius:22px;margin:4px 0 22px;box-shadow:var(--sombra);background:#7b1e2b}
 #telaEntrada.lado .capa{display:none}
+/* Avatar do operador */
+.avatar{width:40px;height:40px;border-radius:50%;background:var(--marca);color:#fff;display:grid;place-items:center;font-weight:800;font-size:14.5px;letter-spacing:.02em;flex-shrink:0;box-shadow:0 0 0 3px var(--sup)}
+button.avatar:hover{background:var(--marca-h)}
+.avatar.grande{width:48px;height:48px;font-size:17px;box-shadow:none}
+.menu-perfil{position:fixed;z-index:70;width:min(300px,calc(100vw - 24px));background:var(--sup);border-radius:18px;box-shadow:0 14px 40px rgba(0,0,0,.18);padding:8px;border:1px solid var(--linha)}
+.perfil-topo{display:flex;align-items:center;gap:12px;padding:10px 10px 14px;border-bottom:1px solid var(--linha);margin-bottom:6px}
+.perfil-topo div{min-width:0}
+.perfil-topo b{display:block;font-size:16px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.perfil-topo small{display:block;color:var(--txt-3);font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.menu-perfil > button{display:flex;align-items:center;gap:10px;width:100%;padding:11px 12px;border-radius:12px;font-weight:700;font-size:15px;color:var(--erro)}
+.menu-perfil > button:hover{background:var(--sup-2)}
+.menu-perfil > button svg{width:18px;height:18px}
 /* Menu de aparência */
 .menu-tema{position:fixed;z-index:70;min-width:220px;background:var(--sup);border-radius:18px;box-shadow:0 14px 40px rgba(0,0,0,.18);padding:6px;border:1px solid var(--linha)}
 .menu-tema button{display:flex;align-items:center;gap:10px;width:100%;padding:11px 12px;border-radius:12px;font-weight:700;font-size:15px;text-align:left;color:var(--txt)}
@@ -444,7 +456,7 @@ import('./mapa3d.js').then(function(m){ window.Mapa3D = m; }).catch(function(e){
     <div class="espaco"></div>
     <span class="selo-con wait" id="opCon">Conectando</span>
     <button class="btn-ico" type="button" data-tema-btn aria-haspopup="menu" aria-label="Aparência" title="Aparência"><svg><use href="#i-tema"/></svg></button>
-    <button class="btn-ico" id="opSair" type="button" aria-label="Sair" title="Sair"><svg><use href="#i-sair"/></svg></button>
+    <button class="avatar" id="opAvatar" type="button" aria-haspopup="menu" aria-label="Sua conta" title="Sua conta"></button>
   </div></header>
   <div class="faixa-off oculto" id="opOff">Sem internet. As marcações ficam guardadas neste aparelho e são enviadas quando a conexão voltar.</div>
   <main class="conteudo">
@@ -492,7 +504,7 @@ import('./mapa3d.js').then(function(m){ window.Mapa3D = m; }).catch(function(e){
     <div class="espaco"></div>
     <span class="selo-con wait" id="supCon">Conectando</span>
     <button class="btn-ico" type="button" data-tema-btn aria-haspopup="menu" aria-label="Aparência" title="Aparência"><svg><use href="#i-tema"/></svg></button>
-    <button class="btn-ico" id="supSair" type="button" aria-label="Sair" title="Sair"><svg><use href="#i-sair"/></svg></button>
+    <button class="avatar" id="supAvatar" type="button" aria-haspopup="menu" aria-label="Sua conta" title="Sua conta"></button>
   </div></header>
   <div class="faixa-off oculto" id="supOff">Sem internet. Os números podem estar desatualizados.</div>
   <main class="conteudo">
@@ -694,7 +706,7 @@ function atualizarCabecalho(){
   var sel=$('setorEquipe'),v=sel.value;
   sel.innerHTML='<option value="">Escolha o setor em que vai servir</option>'+EV.setores.map(function(s){return '<option value="'+s+'">Operador do setor '+s+'</option>';}).join('')+'<option value="SUPERVISOR">Supervisão (todos os setores)</option>';
   sel.value=v;document.title=EV.nome+' | Assentos';
-  if(sessao){$('opSub').textContent=sessao.nome+', '+EV.nome;$('supSub').textContent=sessao.nome+', '+EV.nome;}
+  if(sessao){$('opSub').textContent=EV.nome;$('supSub').textContent=EV.nome;var ini=iniciais(sessao.nome);$('opAvatar').textContent=ini;$('supAvatar').textContent=ini;}
   $('lnkImportar').href='importar.html?e='+encodeURIComponent(EV.id);
 }
 
@@ -947,7 +959,24 @@ function vista(v){
 }
 window.addEventListener('resize',atraso(function(){if(sessao&&sessao.setor!=='SUPERVISOR')vista(OP.vista);},150));
 $('opGrade').addEventListener('click',function(e){var c=e.target.closest('.cad');if(!c)return;var k=sessao.setor+'-'+c.getAttribute('data-n');if(P.porChave[k])abrirFicha(k);else aviso('A cadeira '+k+' não tem reserva.');});
-$('opSair').addEventListener('click',sairSessao);
+/* Avatar do operador: iniciais do nome; abre o cartão com nome, função e Sair */
+function iniciais(n){var p=String(n||'').trim().split(/\s+/).filter(Boolean);if(!p.length)return '?';return (p[0][0]+(p.length>1?p[p.length-1][0]:'')).toUpperCase();}
+document.addEventListener('DOMContentLoaded',function(){
+  var menu=$('menuPerfil'),aberto=null;
+  function fechar(){menu.classList.add('oculto');if(aberto)aberto.setAttribute('aria-expanded','false');aberto=null;}
+  ['opAvatar','supAvatar'].forEach(function(id){$(id).addEventListener('click',function(ev){
+    ev.stopPropagation();if(aberto===this){fechar();return;}if(!sessao)return;
+    $('perfilIni').textContent=iniciais(sessao.nome);$('perfilNome').textContent=sessao.nome;
+    $('perfilFuncao').textContent=(sessao.setor==='SUPERVISOR'?'Supervisão':'Setor '+sessao.setor)+', '+EV.nome;
+    menu.classList.remove('oculto');var r=this.getBoundingClientRect();
+    menu.style.top=(r.bottom+8)+'px';menu.style.right=Math.max(12,innerWidth-r.right)+'px';
+    aberto=this;this.setAttribute('aria-expanded','true');$('perfilSair').focus();
+  });});
+  $('perfilSair').addEventListener('click',function(){fechar();sairSessao();});
+  document.addEventListener('click',function(ev){if(aberto&&!menu.contains(ev.target))fechar();});
+  document.addEventListener('keydown',function(ev){if(ev.key==='Escape'&&aberto){var b=aberto;fechar();b.focus();}});
+  addEventListener('resize',fechar);
+});
 
 /* Marcação: marcar e desmarcar são um toque; o aviso traz Desfazer */
 function mapaPres(s){return sessao&&sessao.setor==='SUPERVISOR'?(SUP.pres[s]=SUP.pres[s]||{}):OP.pres;}
@@ -1038,7 +1067,7 @@ $('supDetLimpar').addEventListener('click',function(){SUP.setor=null;renderSup()
 $('supBusca').addEventListener('input',atraso(renderListaSup,100));
 document.querySelectorAll('[data-sf]').forEach(function(b){b.addEventListener('click',function(){SUP.filtro=b.getAttribute('data-sf');document.querySelectorAll('[data-sf]').forEach(function(x){x.setAttribute('aria-pressed',x===b);});renderListaSup();});});
 $('supLista').addEventListener('click',function(e){var l=e.target.closest('.linha');if(!l)return;var k=l.getAttribute('data-k');if(e.target.closest('[data-marcar]'))alternar(k);else abrirFicha(k);});
-$('supSair').addEventListener('click',sairSessao);
+
 document.querySelectorAll('[data-t]').forEach(function(b){b.addEventListener('click',function(){abaSup(b.getAttribute('data-t'));});});
 function abaSup(t){document.querySelectorAll('[data-t]').forEach(function(b){b.setAttribute('aria-selected',b.getAttribute('data-t')===t);});$('tabPresenca').classList.toggle('oculto',t!=='presenca');$('tabEventos').classList.toggle('oculto',t!=='eventos');if(t==='eventos'){renderAdmLista();editarEvento(EV.id);}}
 
@@ -1130,6 +1159,10 @@ function iniciar(){
 }
 })();
 </script>
+<div class="menu-perfil oculto" id="menuPerfil" role="menu" aria-label="Sua conta">
+  <div class="perfil-topo"><span class="avatar grande" id="perfilIni" aria-hidden="true"></span><div><b id="perfilNome"></b><small id="perfilFuncao"></small></div></div>
+  <button type="button" role="menuitem" id="perfilSair"><svg><use href="#i-sair"/></svg>Sair</button>
+</div>
 <div class="menu-tema oculto" id="menuTema" role="menu" aria-label="Aparência">
   <button type="button" role="menuitemradio" data-tema="sistema"><span>Como o sistema<small>Segue o claro ou escuro do aparelho</small></span><i></i></button>
   <button type="button" role="menuitemradio" data-tema="claro"><span>Claro</span><i></i></button>
