@@ -528,6 +528,14 @@ import('./mapa3d.js').then(function(m){ window.Mapa3D = m; }).catch(function(e){
               <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
                 <button class="btn btn-sec" id="btnExportar" type="button"><svg><use href="#i-baixar"/></svg>Baixar presença</button>
                 <a class="btn btn-sec" id="lnkImportar" href="importar.html"><svg><use href="#i-subir"/></svg>Importar do Tiketo</a>
+                <button class="btn btn-perigo" id="btnZerar" type="button">Zerar presenças</button>
+              </div>
+              <div id="zerarConf" class="oculto" style="margin-top:14px">
+                <p class="ajuda" id="zerarTxt"></p>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+                  <button class="btn btn-perigo forte" id="zerarSim" type="button">Zerar todas</button>
+                  <button class="btn btn-sec" id="zerarNao" type="button">Cancelar</button>
+                </div>
               </div>
             </div>
           </div>
@@ -929,15 +937,15 @@ window.addEventListener('resize',atraso(function(){if(sessao&&sessao.setor!=='SU
 $('opGrade').addEventListener('click',function(e){var c=e.target.closest('.cad');if(!c)return;var k=sessao.setor+'-'+c.getAttribute('data-n');if(P.porChave[k])abrirFicha(k);else aviso('A cadeira '+k+' não tem reserva.');});
 $('opSair').addEventListener('click',sairSessao);
 
-/* Marcação: marcar é um toque; desmarcar sempre pede confirmação */
+/* Marcação: marcar e desmarcar são um toque; o aviso traz Desfazer */
 function mapaPres(s){return sessao&&sessao.setor==='SUPERVISOR'?(SUP.pres[s]=SUP.pres[s]||{}):OP.pres;}
-function alternar(k){var e=mapaPres(k.split('-')[0])[k];if(e&&e.presente){abrirFicha(k,true);return;}gravar(k,true);}
+function alternar(k){var e=mapaPres(k.split('-')[0])[k];gravar(k,!(e&&e.presente));}
 function gravar(k,presente){
   var s=k.split('-')[0],m=mapaPres(s),antes=m[k];
   m[k]={presente:presente,operador:presente?sessao.nome:null,em:Date.now()};rerender();
   var el=document.querySelector('.linha[data-k="'+k+'"]');if(el&&presente)el.classList.add('novo');
   var p=P.porChave[k];
-  if(presente)aviso(k+' marcada como presente'+(p?' ('+p.exib.split(' ')[0]+')':''),{acao:'Desfazer',tempo:4000,onAcao:function(){gravar(k,false);}});else aviso(k+' desmarcada');
+  if(presente)aviso(k+' marcada como presente'+(p?' ('+p.exib.split(' ')[0]+')':''),{acao:'Desfazer',tempo:4000,onAcao:function(){gravar(k,false);}});else aviso(k+' desmarcada'+(p?' ('+p.exib.split(' ')[0]+')':''),{acao:'Desfazer',tempo:4000,onAcao:function(){gravar(k,true);}});
   if(!con)aviso('Sem internet: a marcação será enviada quando a conexão voltar.',{tempo:3500});
   db.ref(caminho('presenca/'+s+'/'+k)).set(presente?{presente:true,operador:sessao.nome,em:firebase.database.ServerValue.TIMESTAMP}:{presente:false,operador:null,em:firebase.database.ServerValue.TIMESTAMP})
     .catch(function(err){console.error(err);if(antes)m[k]=antes;else delete m[k];rerender();aviso('Não foi possível salvar '+k+'. O banco recusou a gravação.',{erro:true,tempo:5000});});
@@ -965,9 +973,7 @@ function preencherFicha(){
   es.textContent=ok?'Presente'+(e.em?' desde '+hora(e.em):'')+(e.operador?'. Marcado por '+e.operador+'.':'.'):'Aguardando chegada.';
   var a=$('fAcoes');
   if(!ok){a.innerHTML='<button class="btn btn-ok btn-bloco" id="fMarcar" type="button">'+ico('i-ok')+'Marcar presença</button>';$('fMarcar').onclick=function(){gravar(k,true);fecharFicha();};}
-  else if(!fichaAtual.confirmar){a.innerHTML='<button class="btn btn-perigo btn-bloco" id="fDesm" type="button">Desmarcar presença</button>';$('fDesm').onclick=function(){fichaAtual.confirmar=true;preencherFicha();};}
-  else{a.innerHTML='<p class="ajuda">Confirma retirar a presença de '+esc(p.exib)+'?</p><button class="btn btn-perigo forte btn-bloco" id="fSim" type="button">Desmarcar</button><button class="btn btn-sec btn-bloco" id="fNao" type="button">Cancelar</button>';
-    $('fSim').onclick=function(){gravar(k,false);fecharFicha();};$('fNao').onclick=function(){fichaAtual.confirmar=false;preencherFicha();};}
+  else{a.innerHTML='<button class="btn btn-perigo btn-bloco" id="fDesm" type="button">Desmarcar presença</button>';$('fDesm').onclick=function(){gravar(k,false);fecharFicha();};}
   grade($('fGrade'),p.setor,{alvo:p.num,presenca:mapaPres(p.setor)});
 }
 $('veu').addEventListener('click',fecharFicha);$('fFechar').addEventListener('click',fecharFicha);
@@ -1030,6 +1036,22 @@ function fonteLista(){
   else if(P.fonte==='reserva')el.textContent='Usando a lista que já estava no sistema ('+P.todos.length+' participantes). Importe a lista do Tiketo para atualizar.';
   else el.textContent='Nenhuma lista importada para este evento ainda.';
 }
+/* Zerar presenças do evento aberto: apaga presenca/ deste evento; a lista de participantes fica */
+$('btnZerar').addEventListener('click',function(){
+  var n=0;Object.keys(SUP.pres||{}).forEach(function(s){Object.keys(SUP.pres[s]).forEach(function(k){if(SUP.pres[s][k].presente)n++;});});
+  $('zerarTxt').textContent='Isso apaga as '+n+' presença'+(n===1?'':'s')+' marcada'+(n===1?'':'s')+' em "'+(EV.nome||'este evento')+'" e não dá para desfazer. Se precisar guardar, use Baixar presença antes.';
+  $('zerarConf').classList.remove('oculto');$('btnZerar').classList.add('oculto');
+});
+$('zerarNao').addEventListener('click',function(){$('zerarConf').classList.add('oculto');$('btnZerar').classList.remove('oculto');});
+$('zerarSim').addEventListener('click',function(){
+  var b=this;b.disabled=true;
+  // apaga cadeira por cadeira numa só gravação (respeita regras do banco definidas por cadeira)
+  var upd={};Object.keys(SUP.pres||{}).forEach(function(st){Object.keys(SUP.pres[st]).forEach(function(k){upd[st+'/'+k]=null;});});
+  if(!Object.keys(upd).length){aviso('Não há presenças para zerar.');b.disabled=false;$('zerarConf').classList.add('oculto');$('btnZerar').classList.remove('oculto');return;}
+  db.ref(caminho('presenca')).update(upd).then(function(){aviso('Presenças zeradas.');})
+    .catch(function(e){console.error(e);aviso('O banco recusou zerar as presenças.',{erro:true,tempo:6000});})
+    .finally(function(){b.disabled=false;$('zerarConf').classList.add('oculto');$('btnZerar').classList.remove('oculto');});
+});
 $('btnExportar').addEventListener('click',function(){
   var q=function(v){v=v==null?'':String(v);return '"'+v.replace(/"/g,'""')+'"';},l=[['Setor','Cadeira','Fileira (a partir do palco)','Participante','Situação','Horário','Marcado por'].map(q).join(';')];
   EV.setores.forEach(function(s){(P.porSetor[s]||[]).forEach(function(p){var e=(SUP.pres[s]||{})[p.chave],ok=e&&e.presente,pos=posicao(s,p.num);l.push([s,p.chave,pos?pos.fileira:'',p.exib,ok?'Presente':'Aguardando',ok&&e.em?new Date(e.em).toLocaleString('pt-BR'):'',ok?e.operador||'':''].map(q).join(';'));});});
