@@ -8,7 +8,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-const BASE = { piso: 0xffffff, plataforma: 0xeceaf0, plataformaFora: 0xf6f5f8, cadeiraFora: 0xe4e1e8, palco: 0x3a3238, palcoTopo: 0x4a4048, alvo: 0xf0a20b };
+const BASE_CLARO = { piso: 0xffffff, plataforma: 0xeceaf0, plataformaFora: 0xf6f5f8, cadeiraFora: 0xe4e1e8, palco: 0x3a3238, palcoTopo: 0x4a4048, alvo: 0xf0a20b, vazia: 0xb9b2bb, presente: 0x2f9a62, sombra: .10 };
+const BASE_ESCURO = { piso: 0x151011, plataforma: 0x3a3135, plataformaFora: 0x262022, cadeiraFora: 0x463c41, palco: 0x5b4f56, palcoTopo: 0x6c5f67, alvo: 0xf0a20b, vazia: 0x5e5459, presente: 0x3bb174, sombra: .35 };
 
 function svgParaPontos(d) {
   const t = d.match(/[MLHVZmlhvz]|-?[\d.]+/g) || [];
@@ -55,6 +56,7 @@ export function corDoSetor(local, setor) {
 }
 
 export function criarMapa3D(el, opts) {
+  const BASE = document.documentElement.getAttribute('data-tema') === 'escuro' ? BASE_ESCURO : BASE_CLARO;
   const loc = opts.local;
   const usados = new Set(opts.setores || Object.keys(loc.setores));
   const P = (r, a) => { const t = a * Math.PI / 180; return [r * Math.cos(t), -r * Math.sin(t)]; };
@@ -83,7 +85,7 @@ export function criarMapa3D(el, opts) {
   sol.target.position.set(0, 0, -220); cena.add(sol, sol.target);
 
   // sombra suave no chão (só recebe sombra; o fundo da página aparece)
-  const chao = new THREE.Mesh(new THREE.PlaneGeometry(2400, 2400), new THREE.ShadowMaterial({ opacity: .10 }));
+  const chao = new THREE.Mesh(new THREE.PlaneGeometry(2400, 2400), new THREE.ShadowMaterial({ opacity: BASE.sombra }));
   chao.rotation.x = -Math.PI / 2; chao.position.set(0, -.6, -200); chao.receiveShadow = true; cena.add(chao);
 
   const limites = { x0: Infinity, x1: -Infinity, z0: Infinity, z1: -Infinity };
@@ -189,7 +191,7 @@ export function criarMapa3D(el, opts) {
     inst.setMatrixAt(i, mtx);
   });
   // opts.estado(setor, num) -> 'presente' | 'vazia' | outro: pinta quem chegou de verde e cadeira sem reserva de cinza
-  const VERDE = new THREE.Color(0x2f9a62), VAZIA = new THREE.Color(0xb9b2bb);
+  const VERDE = new THREE.Color(BASE.presente), VAZIA = new THREE.Color(BASE.vazia);
   let destaqueAtual = null;
   function pintar(destaque) {
     destaqueAtual = destaque;
