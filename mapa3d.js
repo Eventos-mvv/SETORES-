@@ -108,7 +108,7 @@ export function criarMapa3D(el, opts) {
   });
 
   // setores: plataforma + cadeiras
-  const plataformas = {}, selos = {}, posCadeira = {}, cadeirasPorSetor = {};
+  const plataformas = {}, selos = {}, posCadeira = {}, cadeirasPorSetor = {}, fileirasPorSetor = {};
   const geoCad = (() => {
     const partes = [new THREE.BoxGeometry(6, 1.8, 5.4).translate(0, 3.2, 0), new THREE.BoxGeometry(6, 6.4, 1.6).translate(0, 5.6, 2.7)];
     const pos = [], nor = [];
@@ -147,8 +147,11 @@ export function criarMapa3D(el, opts) {
       const N = st.totalFileiras || n, passo = (R.w - 2 * folga) / maxLen, passoZ = (R.h - 2 * folga) / Math.max(1, N - 1);
       const esc = Math.max(1, Math.min(passo, passoZ) * .72 / 6);
       cadeirasPorSetor[k] = []; cadeirasPorSetor[k].passo = Math.min(passo, passoZ); cadeirasPorSetor[k].tamMax = 7.6 * esc;
+      fileirasPorSetor[k] = [];
       fil.forEach((row, i) => {
         const frente = n - 1 - i, z = R.z0 + R.h - folga - frente * passoZ;
+        const meia = (maxLen - 1) / 2 * passo + Math.max(passo * .9, 7 * esc);
+        fileirasPorSetor[k].push({ n: n - i, esc, rot: Math.PI, pontas: [[R.x0 + R.w / 2 - meia, z], [R.x0 + R.w / 2 + meia, z]] });
         row.forEach((num, j) => {
           const x = R.x0 + R.w / 2 + (j - (row.length - 1) / 2) * passo, idx = lista.length;
           lista.push({ k, num, x, z, fora, rot: Math.PI, esc });
@@ -161,9 +164,13 @@ export function criarMapa3D(el, opts) {
     const arcoFundo = (ro - folga) * (a2 - a1 - 3) * Math.PI / 180;
     const passo = Math.min(9.5, arcoFundo / maxLen);
     cadeirasPorSetor[k] = []; cadeirasPorSetor[k].passo = passo;
+    fileirasPorSetor[k] = [];
     fil.forEach((row, i) => {
       const N = st.totalFileiras || n, frente = n - 1 - i, r = (ri + folga) + frente * ((ro - ri - 2 * folga) / Math.max(1, N - 1));
       const meio = (a1 + a2) / 2, passoAng = passo / r * 180 / Math.PI;
+      // na beirada do setor: todas as fileiras ficam na mesma linha reta, viradas para o mesmo lado
+      const dentro = 4.2 / r * 180 / Math.PI, m = P(1, meio);
+      fileirasPorSetor[k].push({ n: n - i, esc: .9, rot: Math.atan2(m[0], m[1]), pontas: [P(r, a2 - dentro), P(r, a1 + dentro)] });
       row.forEach((num, j) => {
         const [x, z] = P(r, meio + ((row.length - 1) / 2 - j) * passoAng);
         const idx = lista.length;
@@ -232,6 +239,19 @@ export function criarMapa3D(el, opts) {
     return (matTxt[n] = new THREE.MeshBasicMaterial({ map: t, transparent: true, depthWrite: false }));
   }
   const geoTxt = new THREE.PlaneGeometry(1, 1); geoTxt.rotateX(-Math.PI / 2);
+  // número da fileira nas duas pontas de cada fileira (1 = a mais perto do palco)
+  const matFileira = {};
+  function matFil(n) {
+    if (matFileira[n]) return matFileira[n];
+    const c = document.createElement('canvas'); c.width = c.height = 128;
+    const g = c.getContext('2d');
+    g.fillStyle = '#ffffff'; g.beginPath(); g.arc(64, 64, 58, 0, Math.PI * 2); g.fill();
+    g.lineWidth = 6; g.strokeStyle = 'rgba(123,30,43,.35)'; g.stroke();
+    g.fillStyle = '#7b1e2b'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.font = `800 ${n > 9 ? 60 : 70}px 'Nunito Sans', system-ui, sans-serif`; g.fillText(String(n), 64, 69);
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
+    return (matFileira[n] = new THREE.MeshBasicMaterial({ map: t, transparent: true, depthWrite: false }));
+  }
   let numeros = null, setorAberto = null;
   // número pintado no assento de cada cadeira do setor aberto (lido de quem olha do palco)
   function mostrarNumeros(k, alvoNum) {
@@ -246,6 +266,12 @@ export function criarMapa3D(el, opts) {
       t.userData = { setor: k, num: c.num };
       numeros.add(t);
     });
+    (fileirasPorSetor[k] || []).forEach(f => f.pontas.forEach(([x, z]) => {
+      const t = new THREE.Mesh(geoTxt, matFil(f.n));
+      t.rotation.y = (f.rot != null ? f.rot : Math.atan2(x, z)) + Math.PI;
+      t.position.set(x, 3 + 4.1 * (f.esc || 1) + .06, z); t.scale.setScalar(6.4 * f.esc); t.renderOrder = 2;
+      numeros.add(t);
+    }));
     cena.add(numeros);
   }
 
