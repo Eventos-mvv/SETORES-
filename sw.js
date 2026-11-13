@@ -1,6 +1,6 @@
 /* App Assentos MVV: guarda os arquivos para abrir rápido e sem internet.
  * Os dados ao vivo (Firebase) nunca passam por aqui. Ao mudar arquivos do app, troque a VERSAO. */
-var VERSAO = 'assentos-v3';
+var VERSAO = 'assentos-v4';
 var APP = ['./', './index.html', './locais.js', './mapa3d.js', './reserva.js', './manifest.webmanifest',
   './icone-192.png', './icone-512.png', './apple-touch-icon.png', './favicon-32.png', './capa.png'];
 var FIXOS = /^https:\/\/(cdn\.jsdelivr\.net\/npm\/three@|www\.gstatic\.com\/firebasejs\/|fonts\.(googleapis|gstatic)\.com\/)/;

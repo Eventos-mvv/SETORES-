@@ -1,6 +1,6 @@
 {
-  "name": "Assentos | Eventos MVV",
-  "short_name": "Assentos MVV",
+  "name": "Setores | Eventos MVV",
+  "short_name": "Setores",
   "description": "Encontre seu lugar e marque a presença nos eventos do Ministério Verbo da Vida.",
   "id": "./",
   "start_url": "./index.html?app=1",
