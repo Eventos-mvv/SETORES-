@@ -341,6 +341,9 @@ input[type=search]::-webkit-search-cancel-button,input[type=search]::-webkit-sea
   #opLista{max-height:calc(100vh - 330px);overflow:auto;padding:2px 4px 8px 2px;margin-right:-4px}
   #opColMapa .vista3d{aspect-ratio:auto;height:calc(100vh - 220px);max-height:none;min-height:420px}
 }
+/* Capa do app no topo das telas de entrada */
+.capa{display:block;width:100%;height:auto;aspect-ratio:1200/630;border-radius:22px;margin:4px 0 22px;box-shadow:var(--sombra);background:#7b1e2b}
+#telaEntrada.lado .capa{display:none}
 /* Menu de aparência */
 .menu-tema{position:fixed;z-index:70;min-width:220px;background:var(--sup);border-radius:18px;box-shadow:0 14px 40px rgba(0,0,0,.18);padding:6px;border:1px solid var(--linha)}
 .menu-tema button{display:flex;align-items:center;gap:10px;width:100%;padding:11px 12px;border-radius:12px;font-weight:700;font-size:15px;text-align:left;color:var(--txt)}
@@ -388,6 +391,7 @@ import('./mapa3d.js').then(function(m){ window.Mapa3D = m; }).catch(function(e){
 <div id="telaEventos">
   <header class="barra-topo"><div class="barra-topo-in"><div class="marca"><div class="marca-sinal">MVV</div><span>Ministério Verbo da Vida<small>Eventos</small></span></div><div class="espaco"></div><button class="btn-ico" type="button" data-tema-btn aria-haspopup="menu" aria-label="Aparência" title="Aparência"><svg><use href="#i-tema"/></svg></button><button class="btn-instalar oculto" type="button" data-instalar><svg><use href="#i-baixar"/></svg>Instalar app</button></div></header>
   <main class="conteudo estreito">
+    <img class="capa" src="capa.png" width="1200" height="630" alt="Setores, Eventos MVV"/>
     <h1>Escolha o evento</h1>
     <p class="sub">Selecione o evento para encontrar seu lugar ou entrar como equipe.</p>
     <div class="ev-lista" id="listaEventos"><div class="carreg"><span class="giro"></span>Carregando eventos</div></div>
@@ -404,6 +408,7 @@ import('./mapa3d.js').then(function(m){ window.Mapa3D = m; }).catch(function(e){
     <button class="btn-txt" id="btnTrocarEvento" type="button">Trocar evento</button>
   </div></header>
   <main class="conteudo estreito">
+    <img class="capa" src="capa.png" width="1200" height="630" alt="Setores, Eventos MVV"/>
     <h1 id="evNome">Evento</h1>
     <div class="meta" id="evMeta"></div>
 
