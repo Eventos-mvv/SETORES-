@@ -277,6 +277,22 @@ input[type=search]::-webkit-search-cancel-button,input[type=search]::-webkit-sea
   #supLista{max-height:calc(100vh - 360px);overflow:auto}
 }
 
+
+/* Telas de leitura: cabeçalho na mesma largura do conteúdo */
+#telaEventos .barra-topo-in,#telaEntrada .barra-topo-in{max-width:540px}
+/* Computador: resultado ao lado do mapa 3D */
+@media (min-width:1024px){
+  #telaEntrada.lado .barra-topo-in,#telaEntrada.lado main{max-width:1180px}
+  #telaEntrada.lado main{display:grid;grid-template-columns:400px minmax(0,1fr);column-gap:40px;align-content:start;grid-auto-flow:row dense}
+  #telaEntrada.lado main > *,#telaEntrada.lado #painelPart > *,#telaEntrada.lado #resultadoPart > *{grid-column:1}
+  #telaEntrada.lado #painelPart,#telaEntrada.lado #resultadoPart{display:contents}
+  #telaEntrada.lado #part3dPainel,#telaEntrada.lado #part2d{grid-column:2;grid-row:1 / span 30;margin-top:0!important;align-self:start;position:sticky;top:84px}
+  #telaEntrada.lado .vista3d{aspect-ratio:auto;height:calc(100vh - 170px);max-height:none;min-height:420px}
+  #telaEntrada.lado #painelPart .rot{margin-top:20px}
+  .op-grid{grid-template-columns:minmax(340px,420px) minmax(0,1fr)!important}
+  #opLista{max-height:calc(100vh - 330px);overflow:auto;padding:2px 4px 8px 2px;margin-right:-4px}
+  #opColMapa .vista3d{aspect-ratio:auto;height:calc(100vh - 220px);max-height:none;min-height:420px}
+}
 /* Instalar o app */
 .btn-instalar{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 14px;border-radius:18px;background:var(--marca);color:#fff;font-weight:800;font-size:13.5px;white-space:nowrap}
 .btn-instalar svg{width:16px;height:16px}
@@ -700,12 +716,12 @@ function realcar(nome,q){
 }
 
 /* ================= Entrada ================= */
-function trocarAba(q){var p=q==='part';$('abaPart').setAttribute('aria-selected',p);$('abaEquipe').setAttribute('aria-selected',!p);$('painelPart').classList.toggle('oculto',!p);$('painelEquipe').classList.toggle('oculto',p);}
+function trocarAba(q){var p=q==='part';$('abaPart').setAttribute('aria-selected',p);$('abaEquipe').setAttribute('aria-selected',!p);$('painelPart').classList.toggle('oculto',!p);$('painelEquipe').classList.toggle('oculto',p);$('telaEntrada').classList.toggle('lado',p&&!!$('resultadoPart').innerHTML);}
 $('abaPart').addEventListener('click',function(){trocarAba('part');});
 $('abaEquipe').addEventListener('click',function(){trocarAba('equipe');});
 
 var bp=$('buscaPart'),partMapa3d=null;
-function limparPart3d(){if(partMapa3d){partMapa3d.destruir();partMapa3d=null;}}
+function limparPart3d(){$('telaEntrada').classList.remove('lado');if(partMapa3d){partMapa3d.destruir();partMapa3d=null;}}
 function sugerir(){
   var q=bp.value,box=$('sugestoesPart');$('limparPart').classList.toggle('oculto',!q);
   if(P.fonte==='carregando'){box.innerHTML=q?'<div class="carreg"><span class="giro"></span>Carregando a lista</div>':'';return;}
@@ -723,7 +739,7 @@ $('limparPart').addEventListener('click',function(){limparPart3d();bp.value='';$
 function mostrarPart(k){
   var p=P.porChave[k];if(!p)return;var pos=posicao(p.setor,p.num);
   $('sugestoesPart').innerHTML='';bp.value=p.exib;$('limparPart').classList.remove('oculto');
-  var r=$('resultadoPart');
+  var r=$('resultadoPart');$('telaEntrada').classList.add('lado');
   r.innerHTML='<div class="frase"><div class="quem">'+esc(p.exib.split(' ')[0])+', seu lugar é</div>'
     +'<div class="onde num">setor <b>'+p.setor+'</b> '+(pos?'fileira <b>'+pos.fileira+'</b> ':'')+'cadeira <b>'+p.num+'</b></div>'
     +'<div class="dica">A fileira é contada a partir do palco.</div></div>'
