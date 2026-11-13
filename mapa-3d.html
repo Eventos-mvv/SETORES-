@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<meta name="robots" content="noindex"/>
+<title>Mapa 3D | Eventos MVV</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:opsz,wght@6..12,400;6..12,600;6..12,700;6..12,800&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--marca:#7b1e2b;--txt:#24181a;--txt-3:#8a7476;--tinta:#fbeef0}
+body{font-family:'Nunito Sans',system-ui,sans-serif;background:#fff linear-gradient(180deg,#fdf1f3 0,rgba(253,241,243,0) 380px) no-repeat;color:var(--txt);-webkit-font-smoothing:antialiased;min-height:100vh}
+.wrap{max-width:980px;margin:0 auto;padding:22px 20px 40px}
+h1{font-size:28px;font-weight:800;letter-spacing:-.02em;line-height:1.15}
+.sub{color:var(--txt-3);font-weight:600;margin-top:4px}
+.busca{position:relative;margin-top:18px;max-width:520px}
+.busca input{width:100%;height:56px;border:none;border-radius:18px;background:#fff;box-shadow:0 8px 24px rgba(123,30,43,.10);padding:0 18px;font:700 16px 'Nunito Sans',sans-serif;outline:none}
+.sug{position:absolute;left:0;right:0;top:62px;background:#fff;border-radius:18px;box-shadow:0 12px 32px rgba(123,30,43,.14);padding:6px;z-index:5}
+.sug button{display:flex;justify-content:space-between;width:100%;padding:11px 12px;border:none;background:none;border-radius:12px;font:600 15px 'Nunito Sans',sans-serif;cursor:pointer;text-align:left}
+.sug button:hover{background:#fcf8f8}
+.sug span{color:var(--marca);font-weight:800}
+.frase{margin-top:16px;min-height:62px}
+.frase .q{font-weight:800;font-size:17px}
+.frase .o{color:var(--txt-3);font-weight:700;font-size:16px}
+.frase .o b{color:var(--marca);font-size:30px;font-weight:800;margin-right:4px}
+.palco3d{position:relative;width:calc(100% + 32px);margin:6px -16px 0;aspect-ratio:1/1;max-height:640px}
+@media (min-width:720px){.palco3d{width:100%;margin:6px 0 0;aspect-ratio:16/10}}
+.palco3d .dica{position:absolute;left:0;right:0;bottom:6px;text-align:center;font-size:13px;color:var(--txt-3);font-weight:600;pointer-events:none}
+.acoes{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+.acoes button{height:40px;padding:0 16px;border:none;border-radius:14px;background:var(--tinta);color:var(--marca);font:800 14px 'Nunito Sans',sans-serif;cursor:pointer}
+.legenda{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 18px;margin-top:14px}
+.legenda div{display:flex;align-items:center;gap:10px;font-weight:700;font-size:14.5px}
+.legenda i{width:16px;height:16px;border-radius:5px;flex-shrink:0}
+.setores{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin-top:12px;padding:2px 0 4px}
+.setores::-webkit-scrollbar{display:none}
+.setores button{flex:0 0 auto;min-width:42px;height:40px;padding:0 10px;border:none;border-radius:12px;background:#fff;box-shadow:0 3px 10px rgba(123,30,43,.08);font:800 15px 'Nunito Sans',sans-serif;cursor:pointer;color:var(--c)}
+.setores button[aria-pressed="true"]{background:var(--c);color:#fff}
+.layouts{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.layouts a{height:34px;padding:0 14px;border-radius:17px;background:#f4ecec;color:var(--txt-3);font-weight:800;font-size:13.5px;display:inline-flex;align-items:center;text-decoration:none}
+.layouts a[aria-current="true"]{background:var(--marca);color:#fff}
+.carreg{position:absolute;inset:0;display:grid;place-items:center;color:var(--txt-3);font-weight:700}
+@media (min-width:720px){.legenda{grid-template-columns:repeat(4,minmax(0,1fr))}}
+</style>
+<script src="locais.js"></script>
+<script src="reserva.js"></script>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
+</head>
+<body>
+<div class="wrap">
+  <h1>Encontre seu lugar</h1>
+  <p class="sub">Busque seu nome ou toque num setor para ver as cadeiras numeradas.</p>
+  <nav class="layouts" id="layouts" aria-label="Layout"></nav>
+  <div class="busca">
+    <input id="q" type="search" placeholder="Nome e sobrenome" autocomplete="off" spellcheck="false"/>
+    <div class="sug" id="sug" hidden></div>
+  </div>
+  <div class="setores" id="setores" role="group" aria-label="Escolher setor"></div>
+  <div class="frase" id="frase"></div>
+  <div class="palco3d" id="mapa"><div class="carreg" id="carreg">Carregando o mapa 3D</div></div>
+  <div class="acoes"><button id="geral" type="button">Ver o auditório inteiro</button></div>
+  <div class="legenda" id="legenda"></div>
+</div>
+<script type="module">
+import { criarMapa3D, corDoSetor } from './mapa3d.js';
+const idLocal = new URLSearchParams(location.search).get('local') || 'verbo-cg';
+const loc = window.LOCAIS[idLocal] || window.LOCAIS['verbo-cg'];
+window.__montarLayouts = () => document.getElementById('layouts').innerHTML = Object.keys(window.LOCAIS).map(id => `<a href="?local=${id}" aria-current="${id === idLocal}">${esc(window.LOCAIS[id].nome.replace(/^.*\((.*)\)$/, '$1'))}</a>`).join('');
+const setores = Object.keys(loc.setores).filter(s => (loc.setores[s].fileiras || []).length);
+const R = window.PARTICIPANTES_RESERVA || {};
+const norm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+const cap = s => String(s || '').toLowerCase().replace(/(^|[\s'-])([a-zà-ÿ])/g, (m, a, b) => a + b.toUpperCase()).replace(/\b(Da|De|Do|Das|Dos|E)\b/g, w => w.toLowerCase());
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const todos = [];
+Object.keys(R).forEach(s => Object.keys(R[s]).forEach(n => { if (loc.setores[s] && (loc.setores[s].fileiras || []).some(f => f.includes(+n))) todos.push({ s, n: +n, nome: cap(R[s][n]), b: norm(R[s][n]) }); }));
+
+window.__montarLayouts();
+document.getElementById('legenda').innerHTML = (loc.grupos || []).map(g => `<div><i style="background:${g.cor}"></i>${esc(g.nome)}</div>`).join('');
+
+const frase = document.getElementById('frase');
+function marcarChip(k) { document.querySelectorAll('#setores button').forEach(b => b.setAttribute('aria-pressed', b.dataset.s === k)); }
+document.getElementById('setores').innerHTML = setores.map(s => `<button type="button" data-s="${s}" style="--c:${corDoSetor(loc, s)}" aria-pressed="false">${s}</button>`).join('');
+document.getElementById('setores').addEventListener('click', e => { const b = e.target.closest('button'); if (b) mapa.abrirSetor(b.dataset.s); });
+const mapa = criarMapa3D(document.getElementById('mapa'), { local: loc, setores, preservar: true,
+  aoMudar(info) {
+    marcarChip(info ? info.setor : null);
+    if (info && info.num == null) frase.innerHTML = `<div class="q">Setor <span style="color:${corDoSetor(loc, info.setor)}">${info.setor}</span></div><div class="o" style="font-size:15px">Toque numa cadeira para ver a fileira.</div>`;
+    if (!info) frase.innerHTML = '';
+  },
+  aoTocarCadeira(s, n) {
+    const fl = fileira(s, n); q.value = '';
+    frase.innerHTML = `<div class="q">Cadeira escolhida</div><div class="o">setor <b style="color:${corDoSetor(loc, s)}">${s}</b> ${fl ? `fileira <b>${fl}</b> ` : ''}cadeira <b>${n}</b></div>`;
+  }
+});
+document.getElementById('carreg').remove();
+window.__mapa = mapa;
+
+function fileira(s, n) { const f = loc.setores[s].fileiras; for (let i = 0; i < f.length; i++) if (f[i].includes(n)) return f.length - i; return null; }
+function escolher(p) {
+  document.getElementById('sug').hidden = true; q.value = p.nome;
+  const fl = fileira(p.s, p.n);
+  document.getElementById('frase').innerHTML = `<div class="q">${esc(p.nome.split(' ')[0])}, seu lugar é</div><div class="o">setor <b style="color:${corDoSetor(loc, p.s)}">${p.s}</b> ${fl ? `fileira <b>${fl}</b> ` : ''}cadeira <b>${p.n}</b></div>`;
+  mapa.focar(p.s, p.n);
+}
+window.__escolher = (s, n) => escolher(todos.find(p => p.s === s && p.n === n));
+const q = document.getElementById('q');
+q.addEventListener('input', () => {
+  const t = norm(q.value).split(' ').filter(Boolean), box = document.getElementById('sug');
+  if (norm(q.value).replace(/ /g, '').length < 3) { box.hidden = true; return; }
+  const r = todos.filter(p => t.every(x => p.b.includes(x))).slice(0, 6);
+  box.hidden = !r.length;
+  box.innerHTML = r.map((p, i) => `<button type="button" data-i="${todos.indexOf(p)}">${esc(p.nome)}<span>${p.s}-${p.n}</span></button>`).join('');
+});
+document.getElementById('sug').addEventListener('click', e => { const b = e.target.closest('button'); if (b) escolher(todos[+b.dataset.i]); });
+document.getElementById('geral').addEventListener('click', () => { mapa.visaoGeral(); q.value = ''; });
+</script>
+</body>
+</html>

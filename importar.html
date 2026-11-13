@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="robots" content="noindex"/>
+<title>Importar participantes · Assentos MVV</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:opsz,wght@6..12,400;6..12,600;6..12,700;6..12,800&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--marca:#7b1e2b;--marca-h:#651722;--tinta:#fbeef0;--sup:#fff;--sup-2:#fcf8f8;--linha:#f1e6e7;--txt:#24181a;--txt-2:#5e4c4f;--txt-3:#8a7476;--ok:#2f9a62;--ok-bg:#eaf7f0;--warn:#8a4f0e;--warn-bg:#fdf3e4;--bad:#b42318;--bad-bg:#fdeeed;--sombra:0 8px 28px rgba(123,30,43,.07)}
+body{font-family:'Nunito Sans',system-ui,sans-serif;background:#fff linear-gradient(180deg,#fdf1f3 0,rgba(253,241,243,0) 420px) no-repeat;color:var(--txt);-webkit-font-smoothing:antialiased;font-size:15.5px;line-height:1.5;min-height:100vh}
+.wrap{max-width:820px;margin:0 auto;padding:28px 20px 80px}
+.lead{display:inline-block;font-size:14px;color:var(--marca);font-weight:800;text-decoration:none}
+h1{font-size:32px;font-weight:800;letter-spacing:-.02em;line-height:1.15;margin:12px 0 8px}
+.sub{color:var(--txt-3);font-weight:600;max-width:640px}
+.ev{margin-top:22px}
+.ev label{display:block;font-size:14px;font-weight:700;color:var(--txt-2);margin-bottom:8px}
+.ev select{width:100%;max-width:540px;height:52px;border:none;border-radius:16px;background:var(--sup);box-shadow:var(--sombra);padding:0 16px;font:inherit;font-weight:700;font-size:16px}
+.now{margin-top:14px;padding:14px 16px;border-radius:18px;background:var(--sup);box-shadow:var(--sombra);font-size:14.5px;font-weight:600;display:flex;gap:10px;align-items:center;color:var(--txt-2)}
+.dot{width:8px;height:8px;border-radius:50%;background:#cbb9bc;flex:0 0 8px}
+.dot.on{background:var(--ok)}
+.drop{display:block;margin-top:14px;border:2px dashed #e6c4ca;border-radius:24px;padding:34px 20px;text-align:center;background:var(--sup);cursor:pointer;transition:border-color .15s,background .15s}
+.drop:hover,.drop.over{border-color:var(--marca);background:#fffafb}
+.drop b{display:block;font-size:17px;font-weight:800;margin-bottom:4px;color:var(--marca)}
+.drop span{color:var(--txt-3);font-size:14px;font-weight:600}
+.drop input{display:none}
+h2{font-size:17px;font-weight:800;margin:30px 0 12px}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.kpi{padding:14px 16px;border-radius:20px;background:var(--sup);box-shadow:var(--sombra)}
+.kpi b{display:block;font-size:28px;font-weight:800;font-variant-numeric:tabular-nums}
+.kpi span{font-size:13.5px;font-weight:600;color:var(--txt-3)}
+.kpi.ok b{color:var(--ok)}.kpi.bad b{color:var(--bad)}.kpi.warn b{color:var(--warn)}
+table{width:100%;border-collapse:separate;border-spacing:0;font-size:14.5px;background:var(--sup);border-radius:20px;box-shadow:var(--sombra);overflow:hidden}
+th,td{padding:10px 16px;text-align:left;border-bottom:1px solid var(--linha)}
+th{font-size:13px;color:var(--txt-3);font-weight:700}
+tr:last-child td{border-bottom:none}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+.box{border-radius:18px;padding:14px 16px;font-size:14.5px;font-weight:600;margin-top:12px}
+.box.bad{background:var(--bad-bg);color:#7a1810}
+.box.warn{background:var(--warn-bg);color:var(--warn)}
+.box.ok{background:var(--ok-bg);color:#1f6b42}
+.box ul{margin:6px 0 0 18px;font-weight:500}
+.scroll{max-height:340px;overflow:auto;border-radius:20px}
+.actions{margin-top:26px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.btn{height:50px;padding:0 22px;border:none;border-radius:16px;background:var(--marca);color:#fff;font:800 15.5px 'Nunito Sans',sans-serif;cursor:pointer}
+.btn:hover{background:var(--marca-h)}
+.btn:disabled{opacity:.45;cursor:default}
+.btn.ghost{background:var(--tinta);color:var(--marca)}
+.muted{color:var(--txt-3);font-size:13.5px;font-weight:600}
+.hidden{display:none!important}
+@media (max-width:560px){.kpis{grid-template-columns:1fr 1fr}h1{font-size:28px}}
+</style>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="locais.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <a class="lead" id="voltar" href="index.html">Voltar para o sistema</a>
+  <h1>Importar participantes do Tiketo</h1>
+  <p class="sub">Baixe no Tiketo a lista com as colunas <b>Participante</b>, <b>Nº do assento</b> e <b>Setor</b> e solte o arquivo aqui. Nada é gravado antes de você conferir e confirmar.</p>
+
+  <div class="ev"><label for="selEvento">Evento</label><select id="selEvento"><option>Carregando eventos...</option></select></div>
+  <div class="now"><span class="dot" id="nowDot"></span><span id="nowTxt">Verificando o que já está no sistema...</span></div>
+
+  <label class="drop" id="drop">
+    <input type="file" id="file" accept=".csv,.xlsx,.xls"/>
+    <b>Escolher arquivo do Tiketo</b>
+    <span>CSV ou Excel · ou arraste o arquivo para cá</span>
+  </label>
+
+  <section id="preview" class="hidden">
+    <h2 id="pvTitle">Conferência do arquivo</h2>
+    <div class="kpis">
+      <div class="kpi ok"><b id="kOk">0</b><span>prontos para importar</span></div>
+      <div class="kpi bad"><b id="kBad">0</b><span>com problema (ficam de fora)</span></div>
+      <div class="kpi"><b id="kNovo">0</b><span>assentos novos ou com outra pessoa</span></div>
+      <div class="kpi warn"><b id="kSai">0</b><span>saem do sistema</span></div>
+    </div>
+    <div id="msgs"></div>
+
+    <h2>Por setor</h2>
+    <table><thead><tr><th>Setor</th><th class="n">No arquivo</th><th class="n">Cadeiras no mapa</th><th class="n">Hoje no sistema</th></tr></thead><tbody id="tbSetores"></tbody></table>
+
+    <h2>Primeiras linhas</h2>
+    <div class="scroll"><table><thead><tr><th>Linha</th><th>Assento</th><th>Participante</th></tr></thead><tbody id="tbLinhas"></tbody></table></div>
+
+    <div class="actions">
+      <button class="btn" id="btnImportar" type="button">Importar</button>
+      <button class="btn ghost" id="btnTrocar" type="button">Escolher outro arquivo</button>
+      <span class="muted" id="status"></span>
+    </div>
+  </section>
+</div>
+
+<script>
+var LOCAIS = window.LOCAIS || {}, LAYOUT = {}, EV = null, RAIZ = '';
+
+firebase.initializeApp({
+  apiKey: "AIzaSyCA0XbDGdmRj-WjlUw08Vg2dnWiR9dyHRo",
+  authDomain: "check-in-18803.firebaseapp.com",
+  databaseURL: "https://check-in-18803-default-rtdb.firebaseio.com",
+  projectId: "check-in-18803",
+  storageBucket: "check-in-18803.firebasestorage.app",
+  messagingSenderId: "403345825446",
+  appId: "1:403345825446:web:72f4b55bc9117090391e67"
+});
+var db = firebase.database();
+
+var $ = function(id){ return document.getElementById(id); };
+function esc(s){ var d=document.createElement('div'); d.textContent=s==null?'':String(s); return d.innerHTML; }
+function norm(s){ return String(s==null?'':s).normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]/g,''); }
+
+// assentos válidos por setor, a partir do mapa
+var VALIDOS = {};
+function definirEvento(ev){
+  EV=ev; RAIZ=ev.raiz; LAYOUT={}; VALIDOS={};
+  var loc=LOCAIS[ev.local]||{setores:{}};
+  Object.keys(loc.setores).forEach(function(s){ var f=loc.setores[s].fileiras||[]; if(!f.length) return; if(ev.setores && ev.setores.length && ev.setores.indexOf(s)<0) return; LAYOUT[s]=f; });
+  Object.keys(LAYOUT).forEach(function(s){ VALIDOS[s] = {}; LAYOUT[s].forEach(function(f){ f.forEach(function(n){ VALIDOS[s][n]=true; }); }); });
+  $('voltar').href='index.html?e='+encodeURIComponent(ev.id);
+  try{ var u=new URL(location.href); u.searchParams.set('e',ev.id); history.replaceState(null,'',u.toString()); }catch(e){}
+  pronto=null; $('preview').classList.add('hidden'); $('file').value='';
+  lerAtual();
+}
+var EVENTOS={};
+db.ref('eventos').on('value',function(snap){
+  var v=snap.val()||{};
+  if(!v.atual) v.atual={nome:'Evento atual',local:'verbo-cg',raiz:'',situacao:'ativo'};
+  EVENTOS={};
+  Object.keys(v).forEach(function(id){ var e=v[id]; EVENTOS[id]={id:id,nome:e.nome||id,local:e.local||'verbo-cg',setores:e.setores||null,raiz:e.raiz!=null?e.raiz:'ev/'+id+'/',situacao:e.situacao||'ativo'}; });
+  var sel=$('selEvento'), pedido=EV?EV.id:new URLSearchParams(location.search).get('e');
+  var ids=Object.keys(EVENTOS).sort(function(a,b){ return (EVENTOS[a].situacao==='ativo'?0:1)-(EVENTOS[b].situacao==='ativo'?0:1) || EVENTOS[a].nome.localeCompare(EVENTOS[b].nome); });
+  sel.innerHTML=ids.map(function(id){ return '<option value="'+id+'">'+esc(EVENTOS[id].nome)+(EVENTOS[id].situacao==='ativo'?'':' (encerrado)')+'</option>'; }).join('');
+  var escolhido=EVENTOS[pedido]?pedido:ids[0];
+  sel.value=escolhido;
+  if(!EV || EV.id!==escolhido || JSON.stringify(EV)!==JSON.stringify(EVENTOS[escolhido])) definirEvento(EVENTOS[escolhido]);
+},function(){ definirEvento({id:'atual',nome:'Evento atual',local:'verbo-cg',raiz:'',setores:null}); });
+$('selEvento').addEventListener('change',function(){ var e=EVENTOS[this.value]; if(e) definirEvento(e); });
+function lugares(s){ return Object.keys(VALIDOS[s]||{}).length; }
+
+// ---------- o que já está no Firebase ----------
+var atual = {}, atualTotal = 0, presenca = {}, pronto = null;
+function lerAtual(){
+  return Promise.all([db.ref(RAIZ+'participantes').once('value'), db.ref(RAIZ+'participantes_meta').once('value'), db.ref(RAIZ+'presenca').once('value')]).then(function(r){
+    atual = {}; atualTotal = 0;
+    var v = r[0].val() || {};
+    Object.keys(v).forEach(function(s){ var sv=v[s]||{}; Object.keys(sv).forEach(function(n){ if(sv[n]){ atual[s+'-'+n]=String(sv[n]); atualTotal++; } }); });
+    presenca = r[2].val() || {};
+    var meta = r[1].val();
+    if(atualTotal){
+      $('nowDot').className='dot on';
+      $('nowTxt').innerHTML='No sistema hoje: <b>'+atualTotal+'</b> participantes'+(meta&&meta.atualizadoEm?' · importados em '+esc(new Date(meta.atualizadoEm).toLocaleString('pt-BR'))+(meta.arquivo?' ('+esc(meta.arquivo)+')':''):'');
+    } else {
+      $('nowDot').className='dot';
+      $('nowTxt').textContent=EV&&EV.id==='atual'?'Ainda não há importação para este evento. O sistema está usando a lista que já existia.':'Ainda não há lista importada para este evento.';
+    }
+  }).catch(function(e){
+    console.error(e);
+    $('nowTxt').textContent='Não consegui ler o Firebase. Confira a internet e recarregue a página.';
+  });
+}
+
+// ---------- arquivo ----------
+var drop=$('drop'), input=$('file');
+input.addEventListener('change', function(){ if(input.files[0]) ler(input.files[0]); });
+['dragenter','dragover'].forEach(function(ev){ drop.addEventListener(ev,function(e){ e.preventDefault(); drop.classList.add('over'); }); });
+['dragleave','drop'].forEach(function(ev){ drop.addEventListener(ev,function(e){ e.preventDefault(); drop.classList.remove('over'); }); });
+drop.addEventListener('drop', function(e){ var f=e.dataTransfer.files[0]; if(f) ler(f); });
+$('btnTrocar').addEventListener('click', function(){ input.value=''; input.click(); });
+
+var nomeArquivo = '';
+function ler(f){
+  nomeArquivo = f.name;
+  var fr = new FileReader();
+  var csv = /\.csv$/i.test(f.name);
+  fr.onload = function(){
+    try{
+      var wb;
+      if(csv){
+        // CSV pode vir em UTF-8 ou no padrão antigo do Excel (acentos quebrados)
+        var buf = new Uint8Array(fr.result);
+        var txt = new TextDecoder('utf-8').decode(buf);
+        if(txt.indexOf('�')>=0) txt = new TextDecoder('windows-1252').decode(buf);
+        wb = XLSX.read(txt.replace(/^﻿/,''), {type:'string', raw:true});
+      } else {
+        wb = XLSX.read(fr.result, {type:'array'});
+      }
+      var ws = wb.Sheets[wb.SheetNames[0]];
+      var linhas = XLSX.utils.sheet_to_json(ws, {header:1, defval:'', raw:false, blankrows:false});
+      analisar(linhas);
+    }catch(e){
+      console.error(e);
+      mostrarErroGeral('Não consegui abrir esse arquivo. Exporte de novo do Tiketo em CSV ou Excel.');
+    }
+  };
+  fr.readAsArrayBuffer(f);
+}
+
+function mostrarErroGeral(m){
+  $('preview').classList.remove('hidden');
+  ['kOk','kBad','kNovo','kSai'].forEach(function(k){ $(k).textContent='–'; });
+  $('msgs').innerHTML='<div class="box bad">'+esc(m)+'</div>';
+  $('tbSetores').innerHTML=''; $('tbLinhas').innerHTML='';
+  $('btnImportar').disabled=true; pronto=null;
+}
+
+function acharColunas(linhas){
+  for(var r=0; r<Math.min(linhas.length,15); r++){
+    var c={nome:-1, assento:-1, setor:-1};
+    linhas[r].forEach(function(cel,i){
+      var n=norm(cel);
+      if(c.nome<0 && (n==='participante'||n==='nome'||n==='nomedoparticipante'||n==='nomecompleto')) c.nome=i;
+      else if(c.assento<0 && n.indexOf('assento')>=0) c.assento=i;
+      else if(c.setor<0 && n.indexOf('setor')===0) c.setor=i;
+    });
+    if(c.nome>=0 && c.assento>=0 && c.setor>=0){ c.linha=r; return c; }
+  }
+  return null;
+}
+
+function analisar(linhas){
+  var col = acharColunas(linhas);
+  if(!col){ mostrarErroGeral('Não achei as colunas "Participante", "Nº do assento" e "Setor" no começo do arquivo. Confira se o arquivo é a lista de participantes do Tiketo.'); return; }
+
+  var ok={}, okLista=[], erros=[], porSetor={}, vistos={};
+  for(var r=col.linha+1; r<linhas.length; r++){
+    var L=linhas[r], numLinha=r+1;
+    var nome=String(L[col.nome]||'').replace(/\s+/g,' ').trim();
+    var setorRaw=String(L[col.setor]||'').trim();
+    var assentoRaw=String(L[col.assento]||'').trim();
+    if(!nome && !setorRaw && !assentoRaw) continue;
+
+    var setor=setorRaw.toUpperCase().replace(/SETOR/g,'').replace(/[^A-Z]/g,'');
+    var nums=assentoRaw.match(/\d+/g);
+    var num=nums?parseInt(nums[nums.length-1],10):NaN;
+    // se o setor vier dentro do assento (ex: "A-12") e a coluna setor estiver vazia
+    if(!setor){ var m=assentoRaw.toUpperCase().match(/^([A-Z])\s*-?\s*\d+/); if(m) setor=m[1]; }
+
+    if(!nome){ erros.push({l:numLinha, t:'sem nome do participante', v:setorRaw+' '+assentoRaw}); continue; }
+    if(!setor){ erros.push({l:numLinha, t:'sem setor', v:nome}); continue; }
+    if(!LAYOUT[setor]){ erros.push({l:numLinha, t:'setor "'+setorRaw+'" não existe no mapa', v:nome}); continue; }
+    if(isNaN(num)){ erros.push({l:numLinha, t:'sem número de assento', v:nome}); continue; }
+    if(!VALIDOS[setor][num]){ erros.push({l:numLinha, t:'assento '+setor+'-'+num+' não existe no mapa (setor '+setor+' vai até '+lugares(setor)+')', v:nome}); continue; }
+    var k=setor+'-'+num;
+    if(vistos[k]){ erros.push({l:numLinha, t:'assento '+k+' repetido (já está com '+vistos[k].nome+', linha '+vistos[k].l+')', v:nome}); continue; }
+    vistos[k]={nome:nome, l:numLinha};
+    if(!ok[setor]) ok[setor]={};
+    ok[setor][num]=nome;
+    okLista.push({l:numLinha, k:k, nome:nome});
+    porSetor[setor]=(porSetor[setor]||0)+1;
+  }
+
+  // homônimos (não bloqueia, só avisa)
+  var porNome={};
+  okLista.forEach(function(x){ var n=norm(x.nome); (porNome[n]=porNome[n]||[]).push(x.k); });
+  var homonimos=Object.keys(porNome).filter(function(n){ return porNome[n].length>1; }).map(function(n){ return porNome[n]; });
+
+  // comparação com o que já está no sistema
+  var mudou=0, saem=[], presencaAfetada=[];
+  okLista.forEach(function(x){ if(atual[x.k]!==x.nome) mudou++; });
+  Object.keys(atual).forEach(function(k){ if(!vistos[k]) saem.push(k); });
+  okLista.forEach(function(x){
+    var s=x.k.split('-')[0], n=x.k.split('-')[1], p=presenca[s]&&presenca[s][x.k];
+    var marcado = p && (p===true || p.presente===true);
+    if(marcado && atual[x.k] && atual[x.k]!==x.nome) presencaAfetada.push(x.k);
+  });
+  saem.forEach(function(k){
+    var s=k.split('-')[0], p=presenca[s]&&presenca[s][k];
+    if(p && (p===true || p.presente===true)) presencaAfetada.push(k);
+  });
+
+  // ---- tela ----
+  $('preview').classList.remove('hidden');
+  $('pvTitle').textContent='Conferência de "'+nomeArquivo+'"';
+  $('kOk').textContent=okLista.length;
+  $('kBad').textContent=erros.length;
+  $('kNovo').textContent=atualTotal?mudou:okLista.length;
+  $('kSai').textContent=saem.length;
+
+  var h='';
+  if(!okLista.length) h+='<div class="box bad">Nenhuma linha válida no arquivo.</div>';
+  if(erros.length){
+    h+='<div class="box bad"><b>'+erros.length+' linha(s) vão ficar de fora.</b> Corrija no Tiketo e importe de novo, se precisar.<ul>'
+      +erros.slice(0,30).map(function(e){ return '<li>Linha '+e.l+': '+esc(e.t)+(e.v?' · '+esc(e.v):'')+'</li>'; }).join('')
+      +(erros.length>30?'<li>e mais '+(erros.length-30)+'...</li>':'')+'</ul></div>';
+  }
+  if(presencaAfetada.length){
+    h+='<div class="box warn"><b>'+presencaAfetada.length+' assento(s) já marcados como presentes</b> vão mudar de pessoa ou sair da lista. A marcação de presença desses assentos continua lá; confira com os operadores.<ul>'
+      +presencaAfetada.slice(0,15).map(function(k){ return '<li>'+esc(k)+(atual[k]?' · era '+esc(atual[k]):'')+'</li>'; }).join('')+'</ul></div>';
+  }
+  if(saem.length && atualTotal){
+    h+='<div class="box warn"><b>'+saem.length+' participante(s) que estão hoje no sistema não aparecem neste arquivo</b> e serão retirados (cancelamentos ou trocas no Tiketo).</div>';
+  }
+  if(homonimos.length){
+    h+='<div class="box warn"><b>'+homonimos.length+' nome(s) repetidos em assentos diferentes.</b> Não impede a importação, mas na busca por nome vai aparecer mais de um.<ul>'
+      +homonimos.slice(0,10).map(function(g){ return '<li>'+esc(okLista.filter(function(x){return x.k===g[0]})[0].nome)+': '+esc(g.join(', '))+'</li>'; }).join('')+'</ul></div>';
+  }
+  if(okLista.length && !erros.length && !presencaAfetada.length) h+='<div class="box ok">Tudo certo com o arquivo.</div>';
+  $('msgs').innerHTML=h;
+
+  var setores=Object.keys(LAYOUT).sort();
+  var atualPorSetor={}; Object.keys(atual).forEach(function(k){ var s=k.split('-')[0]; atualPorSetor[s]=(atualPorSetor[s]||0)+1; });
+  $('tbSetores').innerHTML=setores.filter(function(s){ return porSetor[s]||atualPorSetor[s]; }).map(function(s){
+    return '<tr><td>'+s+'</td><td class="n">'+(porSetor[s]||0)+'</td><td class="n">'+lugares(s)+'</td><td class="n">'+(atualPorSetor[s]||0)+'</td></tr>';
+  }).join('') || '<tr><td colspan="4" class="muted">Nenhum setor reconhecido.</td></tr>';
+
+  $('tbLinhas').innerHTML=okLista.slice(0,25).map(function(x){
+    return '<tr><td>'+x.l+'</td><td><b>'+esc(x.k)+'</b></td><td>'+esc(x.nome)+'</td></tr>';
+  }).join('');
+
+  pronto = okLista.length ? {dados:ok, total:okLista.length, saem:saem.length} : null;
+  $('btnImportar').disabled=!pronto;
+  $('btnImportar').textContent=pronto?'Importar '+okLista.length+' participantes':'Importar';
+  $('status').textContent='';
+  $('preview').scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+$('btnImportar').addEventListener('click', function(){
+  if(!pronto) return;
+  var aviso='Evento: '+EV.nome+'\n\nIsso substitui a lista de participantes deste evento por '+pronto.total+' pessoas'+(pronto.saem&&atualTotal?' (e retira '+pronto.saem+')':'')+'.\nAs marcações de presença não são apagadas.\n\nConfirmar?';
+  if(!confirm(aviso)) return;
+  var btn=$('btnImportar'); btn.disabled=true; $('status').textContent='Gravando...';
+  var up={};
+  up[RAIZ+'participantes']=pronto.dados;
+  up[RAIZ+'participantes_meta']={atualizadoEm:firebase.database.ServerValue.TIMESTAMP, total:pronto.total, arquivo:nomeArquivo};
+  db.ref().update(up).then(function(){
+    $('status').textContent='';
+    $('msgs').innerHTML='<div class="box ok"><b>Importado.</b> '+pronto.total+' participantes já estão no check-in e no "Encontre seu assento". Quem estiver com o sistema aberto vê a lista nova na hora.</div>';
+    pronto=null; btn.textContent='Importado';
+    lerAtual();
+  }).catch(function(e){
+    console.error(e); btn.disabled=false;
+    $('status').textContent='';
+    $('msgs').insertAdjacentHTML('afterbegin','<div class="box bad">O Firebase recusou a gravação'+(e&&e.code?' ('+esc(e.code)+')':'')+'. Provavelmente as regras do banco não permitem escrever em "participantes".</div>');
+  });
+});
+</script>
+</body>
+</html>
