@@ -356,6 +356,12 @@ button.avatar:hover{background:var(--marca-h)}
 .menu-perfil > button{display:flex;align-items:center;gap:10px;width:100%;padding:11px 12px;border-radius:12px;font-weight:700;font-size:15px;color:var(--erro)}
 .menu-perfil > button:hover{background:var(--sup-2)}
 .menu-perfil > button svg{width:18px;height:18px}
+/* Vista da cadeira */
+#part3dPainel{position:relative}
+.btn-vista{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);display:inline-flex;align-items:center;gap:8px;height:46px;padding:0 20px;border-radius:999px;background:var(--marca);color:#fff;font-weight:800;font-size:15px;box-shadow:0 8px 24px rgba(123,30,43,.35);white-space:nowrap;z-index:2}
+.btn-vista:hover{background:var(--marca-h)}
+.btn-vista svg{width:19px;height:19px}
+.btn-vista.na-vista{background:rgba(255,255,255,.94);color:var(--marca);box-shadow:0 8px 24px rgba(0,0,0,.18)}
 /* Menu de aparência */
 .menu-tema{position:fixed;z-index:70;min-width:220px;background:var(--sup);border-radius:18px;box-shadow:0 14px 40px rgba(0,0,0,.18);padding:6px;border:1px solid var(--linha)}
 .menu-tema button{display:flex;align-items:center;gap:10px;width:100%;padding:11px 12px;border-radius:12px;font-weight:700;font-size:15px;text-align:left;color:var(--txt)}
@@ -395,6 +401,7 @@ import('./mapa3d.js').then(function(m){ window.Mapa3D = m; }).catch(function(e){
   <symbol id="i-baixar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></symbol>
   <symbol id="i-subir" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V9M7 14l5-5 5 5M5 4h14"/></symbol>
   <symbol id="i-link" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></symbol>
+  <symbol id="i-olho" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></symbol>
   <symbol id="i-tema" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16Z" fill="currentColor" stroke="none"/></symbol>
   <symbol id="i-mais" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></symbol>
 </svg>
@@ -825,7 +832,7 @@ function mostrarPart(k){
   r.innerHTML='<div class="frase"><div class="quem">'+esc(p.exib.split(' ')[0])+', seu lugar é</div>'
     +'<div class="onde num">setor <b>'+p.setor+'</b> '+(pos?'fileira <b>'+pos.fileira+'</b> ':'')+'cadeira <b>'+p.num+'</b></div>'
     +'<div class="dica">A fileira é contada a partir do palco.</div></div>'
-    +'<div class="painel" style="margin-top:20px" id="part3dPainel"><div class="painel-cab"><h2>Seu lugar no auditório</h2><p>Arraste para girar</p></div><div class="vista3d" id="part3d"><div class="carreg"><span class="giro"></span>Abrindo o mapa</div></div></div>'
+    +'<div class="painel" style="margin-top:20px" id="part3dPainel"><div class="painel-cab"><h2 id="part3dTit">Seu lugar no auditório</h2><p id="part3dDica">Arraste para girar</p></div><div class="vista3d" id="part3d"><div class="carreg"><span class="giro"></span>Abrindo o mapa</div></div><button class="btn-vista oculto" type="button" id="btnVista"><svg><use href="#i-olho"/></svg><span>Ver da minha cadeira</span></button></div>'
     +'<div id="part2d"></div>'
     +'<button class="btn btn-sec btn-bloco" type="button" id="outroNome" style="margin-top:16px">Buscar outro nome</button>';
   if(partMapa3d){partMapa3d.destruir();partMapa3d=null;}
@@ -836,7 +843,15 @@ function mostrarPart(k){
   };
   com3D(function(M){
     var el=$('part3d');if(!el)return;el.innerHTML='';
-    try{partMapa3d=M.criarMapa3D(el,{local:local(),setores:EV.setores,alvo:{setor:p.setor,num:p.num}});}catch(e){console.error(e);em2D();}
+    try{partMapa3d=M.criarMapa3D(el,{local:local(),setores:EV.setores,alvo:{setor:p.setor,num:p.num},
+      aoMudar:function(info){var naVista=!!(info&&info.vista);
+        $('part3dTit').textContent=naVista?'Vista da cadeira\u00a0'+p.chave.replace('-','\u2011'):'Seu lugar no auditório';
+        $('part3dDica').textContent=naVista?'Arraste para olhar em volta':'Arraste para girar';
+        $('btnVista').querySelector('span').textContent=naVista?'Voltar ao mapa':'Ver da minha cadeira';
+        $('btnVista').classList.toggle('na-vista',naVista);}});
+      if(partMapa3d.vistaDaCadeira){var bv=$('btnVista');bv.classList.remove('oculto');
+        bv.addEventListener('click',function(){if(partMapa3d.naVista())partMapa3d.sairDaVista();else partMapa3d.vistaDaCadeira(p.setor,p.num);});}
+    }catch(e){console.error(e);em2D();}
   },em2D);
   $('outroNome').addEventListener('click',function(){limparPart3d();bp.value='';r.innerHTML='';sugerir();bp.focus();window.scrollTo({top:0,behavior:'smooth'});});
   bp.blur();

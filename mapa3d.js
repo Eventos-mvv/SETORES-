@@ -8,8 +8,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-const BASE_CLARO = { piso: 0xffffff, plataforma: 0xeceaf0, plataformaFora: 0xf6f5f8, cadeiraFora: 0xe4e1e8, palco: 0x3a3238, palcoTopo: 0x4a4048, alvo: 0xf0a20b, vazia: 0xb9b2bb, presente: 0x2f9a62, sombra: .10 };
-const BASE_ESCURO = { piso: 0x151011, plataforma: 0x3a3135, plataformaFora: 0x262022, cadeiraFora: 0x463c41, palco: 0x5b4f56, palcoTopo: 0x6c5f67, alvo: 0xf0a20b, vazia: 0x5e5459, presente: 0x3bb174, sombra: .35 };
+const BASE_CLARO = { piso: 0xffffff, plataforma: 0xeceaf0, plataformaFora: 0xf6f5f8, cadeiraFora: 0xe4e1e8, palco: 0x3a3238, palcoTopo: 0x4a4048, alvo: 0xf0a20b, vazia: 0xb9b2bb, presente: 0x2f9a62, sombra: .10, ceu: 0xf1eaec, salaPiso: 0xe2d8da, salaParede: 0xd8c8cc, telao: 0x2a2226 };
+const BASE_ESCURO = { piso: 0x151011, plataforma: 0x3a3135, plataformaFora: 0x262022, cadeiraFora: 0x463c41, palco: 0x5b4f56, palcoTopo: 0x6c5f67, alvo: 0xf0a20b, vazia: 0x5e5459, presente: 0x3bb174, sombra: .35, ceu: 0x161112, salaPiso: 0x221b1d, salaParede: 0x2c2326, telao: 0x0d0a0b };
 
 function svgParaPontos(d) {
   const t = d.match(/[MLHVZmlhvz]|-?[\d.]+/g) || [];
@@ -89,6 +89,7 @@ export function criarMapa3D(el, opts) {
   chao.rotation.x = -Math.PI / 2; chao.position.set(0, -.6, -200); chao.receiveShadow = true; cena.add(chao);
 
   const limites = { x0: Infinity, x1: -Infinity, z0: Infinity, z1: -Infinity };
+  let palco = null; // centro e altura do púlpito, para a vista da cadeira
   // palco / púlpito e bloco central
   (loc.extras || []).forEach(x => {
     const pts = svgParaPontos(x.d); if (pts.length < 3) return;
@@ -100,6 +101,9 @@ export function criarMapa3D(el, opts) {
     geo.rotateX(-Math.PI / 2);
     const m = new THREE.Mesh(geo, [new THREE.MeshStandardMaterial({ color: BASE.palcoTopo, roughness: .6 }), new THREE.MeshStandardMaterial({ color: BASE.palco, roughness: .7 })]);
     m.castShadow = m.receiveShadow = true; cena.add(m);
+    { const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]);
+      const pc = { x: (Math.max(...xs) + Math.min(...xs)) / 2 - cx, z: (Math.max(...ys) + Math.min(...ys)) / 2 - cy, alto };
+      if (x.texto || !palco) palco = pc; }
     if (x.texto) {
       const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]);
       const lg = Math.min((Math.max(...xs) - Math.min(...xs)) * .8, (Math.max(...ys) - Math.min(...ys)) * .9 * 2);
@@ -112,7 +116,15 @@ export function criarMapa3D(el, opts) {
   // setores: plataforma + cadeiras
   const plataformas = {}, selos = {}, posCadeira = {}, cadeirasPorSetor = {}, fileirasPorSetor = {};
   const geoCad = (() => {
-    const partes = [new THREE.BoxGeometry(6, 1.8, 5.4).translate(0, 3.2, 0), new THREE.BoxGeometry(6, 6.4, 1.6).translate(0, 5.6, 2.7)];
+    const partes = [
+      new THREE.BoxGeometry(4.9, 1.5, 4.8).translate(0, 3.3, -.1),                 // assento
+      new THREE.BoxGeometry(4.9, 6.2, 1.1).rotateX(-.13).translate(0, 6.9, 2.55),  // encosto
+      new THREE.BoxGeometry(.55, 1, 4.6).translate(-2.75, 5.2, .2),               // braço esquerdo
+      new THREE.BoxGeometry(.55, 1, 4.6).translate(2.75, 5.2, .2),                // braço direito
+      new THREE.BoxGeometry(.5, 4.4, 1.4).translate(-2.75, 2.5, .6),              // apoio do braço
+      new THREE.BoxGeometry(.5, 4.4, 1.4).translate(2.75, 2.5, .6),
+      new THREE.BoxGeometry(1.2, 2.6, 1.2).translate(0, 1.3, .3)                   // pé
+    ];
     const pos = [], nor = [];
     partes.forEach(p => { const q = p.toNonIndexed(); pos.push(...q.attributes.position.array); nor.push(...q.attributes.normal.array); });
     const g = new THREE.BufferGeometry();
@@ -295,7 +307,7 @@ export function criarMapa3D(el, opts) {
   }
   function posCam(alvo, d, dx = 0) { return new THREE.Vector3(alvo.x + dx, alvo.y + d * Math.sin(ELEV), alvo.z + d * Math.cos(ELEV)); }
   const GERAL = { alvo: new THREE.Vector3(0, 0, (limites.z0 + Math.max(40, limites.z1)) / 2), cam: new THREE.Vector3() };
-  function visaoGeral(ms = 900) { pintar(null); pino.visible = false; setorAberto = null; mostrarNumeros(null); selos_visiveis(true); voar(GERAL.alvo, GERAL.cam, ms); if (opts.aoMudar) opts.aoMudar(null); }
+  function visaoGeral(ms = 900) { if (vista || manual) { vista = null; manual = null; anim = null; cam.fov = FOV_MAPA; cam.updateProjectionMatrix(); ctr.enabled = true; ambiente(false); } pintar(null); pino.visible = false; setorAberto = null; mostrarNumeros(null); selos_visiveis(true); voar(GERAL.alvo, GERAL.cam, ms); if (opts.aoMudar) opts.aoMudar(null); }
   function selos_visiveis(v) { Object.values(selos).forEach(s => { s.visible = v; }); }
 
   // abre um setor: aproxima vendo de dentro para fora (como quem está no palco) e mostra os números
@@ -318,12 +330,14 @@ export function criarMapa3D(el, opts) {
   function abrirSetor(k, ms = 1100) {
     if (opts.setorFixo && k !== opts.setorFixo) return;
     if (!loc.setores[k] || !usados.has(k) || !(loc.setores[k].arco || loc.setores[k].ret)) return;
+    if (vista || manual) { vista = null; manual = null; anim = null; cam.fov = FOV_MAPA; cam.updateProjectionMatrix(); ctr.enabled = true; ambiente(false); }
     setorAberto = k; pintar(k); pino.visible = false; mostrarNumeros(k); selos_visiveis(false);
     const f = enquadrarSetor(k); voar(f.alvo, f.cam, ms);
     if (opts.aoMudar) opts.aoMudar({ setor: k });
   }
 
   function focar(setor, num, ms = 1500) {
+    if (vista || manual) { vista = null; manual = null; anim = null; cam.fov = FOV_MAPA; cam.updateProjectionMatrix(); ctr.enabled = true; ambiente(false); }
     pintar(setor); setorAberto = setor; mostrarNumeros(setor, num); selos_visiveis(false);
     const c = posCadeira[setor + '-' + num];
     if (!c) { pino.visible = false; voar(GERAL.alvo, GERAL.cam, ms); return; }
@@ -334,6 +348,85 @@ export function criarMapa3D(el, opts) {
     voar(f.alvo.clone().add(ajuste), f.cam.clone().add(ajuste), ms);
     if (opts.aoMudar) opts.aoMudar({ setor, num });
   }
+
+  // sala em volta (piso, parede do fundo e telão), só aparece na vista da cadeira
+  const sala = new THREE.Group(); sala.visible = false; cena.add(sala);
+  {
+    const piso = new THREE.Mesh(new THREE.PlaneGeometry(4000, 4000), new THREE.MeshStandardMaterial({ color: BASE.salaPiso, roughness: 1 }));
+    piso.rotation.x = -Math.PI / 2; piso.position.y = -.7; piso.receiveShadow = true; sala.add(piso);
+    const pc = palco || { x: 0, z: 0 }, fundo = Math.max(limites.z1, pc.z) + 70;
+    const parede = new THREE.Mesh(new THREE.PlaneGeometry(1800, 320), new THREE.MeshStandardMaterial({ color: BASE.salaParede, roughness: .95 }));
+    parede.position.set(pc.x, 160, fundo); parede.rotation.y = Math.PI; sala.add(parede);
+    // telão proporcional ao tamanho do auditório
+    const tw = Math.max(120, Math.min(300, (limites.x1 - limites.x0) * .32)), th = tw * .47, ty = 34 + th / 2;
+    const tel = textoPlano('MVV', tw, tw * .4);
+    const telao = new THREE.Mesh(new THREE.PlaneGeometry(tw, th), new THREE.MeshBasicMaterial({ color: BASE.telao }));
+    telao.position.set(pc.x, ty, fundo - 1); telao.rotation.y = Math.PI; sala.add(telao);
+    tel.rotation.set(0, Math.PI, 0); tel.position.set(pc.x, ty, fundo - 2); sala.add(tel);
+  }
+  function ambiente(on) {
+    sala.visible = on; chao.visible = !on;
+    cena.background = on ? new THREE.Color(BASE.ceu) : null;
+    cena.fog = on ? new THREE.Fog(BASE.ceu, 500, 1700) : null;
+  }
+
+  // vista da cadeira: a câmera senta no lugar, na altura dos olhos, virada para o púlpito
+  const FOV_MAPA = 30, FOV_VISTA = 56;
+  let vista = null, manual = null;
+  const olharPara = new THREE.Vector3();
+  function animarManual(paraPos, paraAlvo, paraFov, ms, fim) {
+    const t0 = performance.now(), dePos = cam.position.clone(), deAlvo = manual ? manual.alvo.clone() : ctr.target.clone(), deFov = cam.fov;
+    anim = null; ctr.enabled = false;
+    manual = { alvo: deAlvo.clone() };
+    anim = agora => {
+      let t = Math.min(1, (agora - t0) / ms); t = t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+      cam.position.lerpVectors(dePos, paraPos, t); manual.alvo.lerpVectors(deAlvo, paraAlvo, t);
+      cam.fov = deFov + (paraFov - deFov) * t; cam.updateProjectionMatrix();
+      if (t >= 1) { anim = null; if (fim) fim(); }
+    };
+  }
+  function direcaoVista() {
+    const base = new THREE.Vector3(vista.palco.x - vista.olho.x, 0, vista.palco.z - vista.olho.z).normalize();
+    const yaw = Math.atan2(base.x, base.z) + vista.yaw;
+    const inclina = Math.atan2(vista.palco.y - vista.olho.y, Math.hypot(vista.palco.x - vista.olho.x, vista.palco.z - vista.olho.z)) + vista.pitch;
+    return new THREE.Vector3(Math.sin(yaw) * Math.cos(inclina), Math.sin(inclina), Math.cos(yaw) * Math.cos(inclina));
+  }
+  function vistaDaCadeira(setor, num, ms = 1800) {
+    const c = posCadeira[setor + '-' + num]; if (!c) return false;
+    const e = c.esc || 1, pc = palco || { x: 0, z: 0, alto: 20 };
+    // olho um pouco atrás do centro do assento (encostado), a ~1,2 m do chão
+    const paraPalco = new THREE.Vector3(pc.x - c.x, 0, pc.z - c.z).normalize();
+    const olho = new THREE.Vector3(c.x, 3 + 15 * e, c.z).addScaledVector(paraPalco, -1.2 * e);
+    vista = { setor, num, olho, palco: new THREE.Vector3(pc.x, pc.alto * .75, pc.z), yaw: 0, pitch: 0 };
+    pino.visible = false; selos_visiveis(false); mostrarNumeros(null); pintar(null); ambiente(true);
+    animarManual(olho, olho.clone().add(direcaoVista().multiplyScalar(100)), FOV_VISTA, ms);
+    if (opts.aoMudar) opts.aoMudar({ setor, num, vista: true });
+    return true;
+  }
+  function sairDaVista(ms = 1300) {
+    if (!vista) return;
+    const { setor, num } = vista; vista = null;
+    // calcula onde o mapa vai parar (mesmo enquadramento de focar) e voa até lá sem pulos
+    const c = posCadeira[setor + '-' + num], f = enquadrarSetor(setor);
+    const ajuste = new THREE.Vector3(c.x, 0, c.z).sub(f.alvo).multiplyScalar(.6);
+    const alvo = f.alvo.clone().add(ajuste), pos = f.cam.clone().add(ajuste);
+    ambiente(false);
+    animarManual(pos, alvo, FOV_MAPA, ms, () => { manual = null; ctr.target.copy(alvo); ctr.enabled = true; focar(setor, num, 1); });
+  }
+  // arrastar na vista da cadeira = olhar em volta; pinça/roda = aproximar
+  let arrasto = null;
+  renderer.domElement.addEventListener('pointerdown', e => { if (vista) { arrasto = { x: e.clientX, y: e.clientY, yaw: vista.yaw, pitch: vista.pitch }; renderer.domElement.setPointerCapture(e.pointerId); } });
+  renderer.domElement.addEventListener('pointermove', e => {
+    if (!vista || !arrasto || anim) return;
+    const k = cam.fov * Math.PI / 180 / (renderer.domElement.clientHeight || 300);
+    vista.yaw = Math.max(-1.25, Math.min(1.25, arrasto.yaw + (e.clientX - arrasto.x) * k));
+    vista.pitch = Math.max(-.45, Math.min(.35, arrasto.pitch + (e.clientY - arrasto.y) * k));
+  });
+  ['pointerup', 'pointercancel'].forEach(t => renderer.domElement.addEventListener(t, () => { arrasto = null; }));
+  renderer.domElement.addEventListener('wheel', e => {
+    if (!vista || anim) return; e.preventDefault();
+    cam.fov = Math.max(30, Math.min(75, cam.fov + e.deltaY * .03)); cam.updateProjectionMatrix();
+  }, { passive: false });
 
   // toque/clique: setor abre; cadeira de setor aberto é escolhida
   const ray = new THREE.Raycaster(), ptr = new THREE.Vector2();
@@ -353,12 +446,13 @@ export function criarMapa3D(el, opts) {
   renderer.domElement.addEventListener('pointerup', e => {
     if (!toque || Math.hypot(e.clientX - toque.x, e.clientY - toque.y) > 8 || performance.now() - toque.t > 600) { toque = null; return; }
     toque = null;
+    if (vista || manual) return;
     const a = acertar(e); if (!a) return;
     if (a.num != null && setorAberto === a.setor) { if (!opts.semDestaqueAoTocar) focar(a.setor, a.num, 700); if (opts.aoTocarCadeira) opts.aoTocarCadeira(a.setor, a.num); }
     else abrirSetor(a.setor);
   });
   if (matchMedia('(hover:hover)').matches) renderer.domElement.addEventListener('pointermove', e => {
-    if (e.buttons) return; renderer.domElement.style.cursor = acertar(e) ? 'pointer' : 'grab';
+    if (e.buttons) return; renderer.domElement.style.cursor = vista ? 'grab' : acertar(e) ? 'pointer' : 'grab';
   });
 
   function tamanho() {
@@ -380,9 +474,13 @@ export function criarMapa3D(el, opts) {
       const sobe = (pino.userData.esc || 1) * 8; cab.position.y = 34 + sobe + o * 3; ponta.position.y = 21 + sobe + o * 3;
       halo.scale.setScalar((pino.userData.esc || 1) * (1.1 + (o + 1) * .25)); halo.material.opacity = .65 - (o + 1) * .18;
     }
-    ctr.update(); renderer.render(cena, cam);
+    if (manual) {
+      if (vista && !anim) manual.alvo.copy(vista.olho).add(direcaoVista().multiplyScalar(100));
+      cam.lookAt(manual.alvo);
+    } else ctr.update();
+    renderer.render(cena, cam);
   })(ini);
 
   if (opts.alvo) focar(opts.alvo.setor, opts.alvo.num, opts.semAnimacao ? 1 : 1500); else visaoGeral(1);
-  return { focar, visaoGeral, abrirSetor, atualizar() { pintar(destaqueAtual); }, setorAberto: () => setorAberto, destruir() { vivo = false; obs.disconnect(); ctr.dispose(); renderer.dispose(); renderer.domElement.remove(); } };
+  return { focar, visaoGeral, abrirSetor, vistaDaCadeira, sairDaVista, naVista: () => !!vista, atualizar() { pintar(destaqueAtual); }, setorAberto: () => setorAberto, destruir() { vivo = false; obs.disconnect(); ctr.dispose(); renderer.dispose(); renderer.domElement.remove(); } };
 }
