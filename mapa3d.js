@@ -96,13 +96,14 @@ export function criarMapa3D(el, opts) {
     const cx = loc.centro[0], cy = loc.centro[1];
     pts.forEach(([px, py]) => { limites.x0 = Math.min(limites.x0, px - cx); limites.x1 = Math.max(limites.x1, px - cx); limites.z1 = Math.max(limites.z1, py - cy); });
     const sh = new THREE.Shape(pts.map(([px, py]) => new THREE.Vector2(px - cx, -(py - cy))));
-    const alto = x.texto ? 22 : 18;
+    const alto = x.texto ? 12 : 14;
     const geo = new THREE.ExtrudeGeometry(sh, { depth: alto, bevelEnabled: true, bevelSize: 2.5, bevelThickness: 2.5, bevelSegments: 3 });
     geo.rotateX(-Math.PI / 2);
     const m = new THREE.Mesh(geo, [new THREE.MeshStandardMaterial({ color: BASE.palcoTopo, roughness: .6 }), new THREE.MeshStandardMaterial({ color: BASE.palco, roughness: .7 })]);
     m.castShadow = m.receiveShadow = true; cena.add(m);
     { const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]);
-      const pc = { x: (Math.max(...xs) + Math.min(...xs)) / 2 - cx, z: (Math.max(...ys) + Math.min(...ys)) / 2 - cy, alto };
+      const pc = { x: (Math.max(...xs) + Math.min(...xs)) / 2 - cx, z: (Math.max(...ys) + Math.min(...ys)) / 2 - cy, alto,
+        x0: Math.min(...xs) - cx, x1: Math.max(...xs) - cx, z0: Math.min(...ys) - cy, z1: Math.max(...ys) - cy };
       if (x.texto || !palco) palco = pc; }
     if (x.texto) {
       const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]);
@@ -203,12 +204,13 @@ export function criarMapa3D(el, opts) {
     inst.setMatrixAt(i, mtx);
   });
   // opts.estado(setor, num) -> 'presente' | 'vazia' | outro: pinta quem chegou de verde e cadeira sem reserva de cinza
-  const VERDE = new THREE.Color(BASE.presente), VAZIA = new THREE.Color(BASE.vazia);
-  let destaqueAtual = null;
+  const VERDE = new THREE.Color(BASE.presente), VAZIA = new THREE.Color(BASE.vazia), GRAFITE = new THREE.Color(0x45484c);
+  let destaqueAtual = null, corSala = false;
   function pintar(destaque) {
     destaqueAtual = destaque;
     lista.forEach((c, i) => {
-      if (c.fora) col.copy(cinza);
+      if (corSala) col.copy(GRAFITE);
+      else if (c.fora) col.copy(cinza);
       else {
         const e = opts.estado ? opts.estado(c.k, c.num) : null;
         col.copy(e === 'presente' ? VERDE : e === 'vazia' ? VAZIA : corSetor(c.k));
@@ -349,29 +351,80 @@ export function criarMapa3D(el, opts) {
     if (opts.aoMudar) opts.aoMudar({ setor, num });
   }
 
-  // sala em volta (piso, parede do fundo e telão), só aparece na vista da cadeira
+  // sala em volta, só aparece na vista da cadeira. Feita a partir das fotos da sede:
+  // parede preta do palco com faixa de LED (2 telões + logo) e telão largo atrás do púlpito,
+  // paredes cinza com painéis de madeira, teto claro com luzes quadradas e carpete escuro.
+  // Escala: 1 m ~ 11 unidades (cadeira ~0,55 m; fileira ~0,95 m).
   const sala = new THREE.Group(); sala.visible = false; cena.add(sala);
+  function tela(w, h, desenho, rep) {
+    const c = document.createElement('canvas'); c.width = w; c.height = h; desenho(c.getContext('2d'), w, h);
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
+    if (rep) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rep[0], rep[1]); }
+    return t;
+  }
+  function plano(w, h, mat, x, y, z, ry) { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat); m.position.set(x, y, z); m.rotation.y = ry || 0; sala.add(m); return m; }
   {
-    const piso = new THREE.Mesh(new THREE.PlaneGeometry(4000, 4000), new THREE.MeshStandardMaterial({ color: BASE.salaPiso, roughness: 1 }));
-    piso.rotation.x = -Math.PI / 2; piso.position.y = -.7; piso.receiveShadow = true; sala.add(piso);
-    const pc = palco || { x: 0, z: 0 }, fundo = Math.max(limites.z1, pc.z) + 70;
-    const parede = new THREE.Mesh(new THREE.PlaneGeometry(1800, 320), new THREE.MeshStandardMaterial({ color: BASE.salaParede, roughness: .95 }));
-    parede.position.set(pc.x, 160, fundo); parede.rotation.y = Math.PI; sala.add(parede);
-    // telão proporcional ao tamanho do auditório
-    const tw = Math.max(120, Math.min(300, (limites.x1 - limites.x0) * .32)), th = tw * .47, ty = 34 + th / 2;
-    const tel = textoPlano('MVV', tw, tw * .4);
-    const telao = new THREE.Mesh(new THREE.PlaneGeometry(tw, th), new THREE.MeshBasicMaterial({ color: BASE.telao }));
-    telao.position.set(pc.x, ty, fundo - 1); telao.rotation.y = Math.PI; sala.add(telao);
-    tel.rotation.set(0, Math.PI, 0); tel.position.set(pc.x, ty, fundo - 2); sala.add(tel);
+    const escuro = BASE === BASE_ESCURO;
+    const pc = palco || { x: 0, z: 0, x0: -60, x1: 60, z0: -40, z1: 60 };
+    const X0 = limites.x0 - 70, X1 = limites.x1 + 70, Z0 = limites.z0 - 90;
+    const ZF = Math.max(limites.z1, pc.z1 || 0) + 34;           // parede do fundo do palco
+    const LARG = X1 - X0, PROF = ZF - Z0, ALT = 150, CX = (X0 + X1) / 2, CZ = (Z0 + ZF) / 2;
+    // carpete
+    const piso = new THREE.Mesh(new THREE.PlaneGeometry(LARG, PROF), new THREE.MeshStandardMaterial({ color: escuro ? 0x2a2a2c : 0x4b4c4f, roughness: 1 }));
+    piso.rotation.x = -Math.PI / 2; piso.position.set(CX, -.7, CZ); piso.receiveShadow = true; sala.add(piso);
+    // paredes cinza com painéis de madeira e ar-condicionado
+    const texParede = (comp) => tela(512, 256, (g, w, h) => {
+      g.fillStyle = '#7f817b'; g.fillRect(0, 0, w, h);
+      g.fillStyle = 'rgba(0,0,0,.08)'; for (let x = 0; x < w; x += 64) g.fillRect(x, 0, 2, h);
+      const madeira = g.createLinearGradient(0, 0, 120, 0); madeira.addColorStop(0, '#9c7a58'); madeira.addColorStop(.5, '#b08d69'); madeira.addColorStop(1, '#987555');
+      g.fillStyle = madeira; g.fillRect(190, 34, 130, 150);
+      g.fillStyle = 'rgba(60,40,20,.18)'; for (let x = 192; x < 320; x += 6) g.fillRect(x, 34, 1, 150);
+      g.fillStyle = '#e9e8e3'; g.fillRect(40, 196, 80, 12); g.fillRect(390, 196, 80, 12);
+    }, [comp / 230, 1]);
+    const matParede = c => new THREE.MeshStandardMaterial({ map: texParede(c), roughness: .95, color: escuro ? 0x8a8a8a : 0xffffff });
+    plano(PROF, ALT, matParede(PROF), X0, ALT / 2, CZ, Math.PI / 2);
+    plano(PROF, ALT, matParede(PROF), X1, ALT / 2, CZ, -Math.PI / 2);
+    plano(LARG, ALT, matParede(LARG), CX, ALT / 2, Z0, 0);
+    plano(LARG, ALT, matParede(LARG), CX, ALT / 2, ZF + 2, Math.PI);
+    // teto claro com a grade de luzes quadradas
+    const teto = new THREE.Mesh(new THREE.PlaneGeometry(LARG, PROF), new THREE.MeshBasicMaterial({ map: tela(128, 128, (g, w, h) => {
+      g.fillStyle = escuro ? '#9a9a96' : '#cfcfca'; g.fillRect(0, 0, w, h); g.strokeStyle = 'rgba(0,0,0,.06)'; g.strokeRect(0, 0, w, h);
+      g.fillStyle = '#ffffff'; g.fillRect(w / 2 - 12, h / 2 - 12, 24, 24);
+    }, [LARG / 60, PROF / 60]) }));
+    teto.rotation.x = Math.PI / 2; teto.position.set(CX, ALT, CZ); sala.add(teto);
+    // parede preta do palco
+    const LP = Math.max(260, Math.min(LARG * .4, (pc.x1 - pc.x0) * 2.3)), preto = new THREE.MeshStandardMaterial({ color: 0x141214, roughness: .8 });
+    plano(LP, ALT - 14, preto, pc.x, (ALT - 14) / 2, ZF, Math.PI);
+    // faixa escura do teto sobre o palco
+    const sanca = new THREE.Mesh(new THREE.BoxGeometry(LP + 80, 14, 70), new THREE.MeshStandardMaterial({ color: 0x1c1a1c, roughness: .9 }));
+    sanca.position.set(pc.x, ALT - 7, ZF - 35); sala.add(sanca);
+    // faixa de LED: dois telões 16:9 nas pontas e a logo no meio
+    // proporções medidas na foto do palco (em fração da largura da parede preta)
+    const yC0 = 12 + LP * .02, hC = LP * .14, wC = LP * .38;
+    const yB0 = yC0 + hC + LP * .012, hB = LP * .21, yBanda = yB0 + hB / 2;
+    const wTel = LP * .27, hTel = LP * .16;
+    const imagem = tela(512, 288, (g, w, h) => {
+      const ceu = g.createLinearGradient(0, 0, 0, h); ceu.addColorStop(0, '#8fa6d8'); ceu.addColorStop(.45, '#d9a9b8'); ceu.addColorStop(.62, '#f0a46a'); ceu.addColorStop(.63, '#6b3b2e'); ceu.addColorStop(1, '#2b1a18');
+      g.fillStyle = ceu; g.fillRect(0, 0, w, h);
+      g.fillStyle = 'rgba(40,25,20,.55)'; g.beginPath(); g.moveTo(0, h * .7); g.quadraticCurveTo(w * .4, h * .58, w, h * .68); g.lineTo(w, h); g.lineTo(0, h); g.fill();
+    });
+    const matTela = new THREE.MeshBasicMaterial({ map: imagem, toneMapped: false });
+    plano(wTel, hTel, matTela, pc.x - LP * .36, yBanda, ZF - 1, Math.PI);
+    plano(wTel, hTel, matTela, pc.x + LP * .36, yBanda, ZF - 1, Math.PI);
+    const logo = plano(LP * .11, LP * .095, new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }), pc.x, yBanda, ZF - 1, Math.PI);
+    new THREE.TextureLoader().load('logo-vdv.png', t => { t.colorSpace = THREE.SRGBColorSpace; logo.material.map = t; logo.material.opacity = .95; logo.material.needsUpdate = true; });
+    // telão largo atrás do púlpito, logo acima do palco
+    plano(wC, hC, matTela, pc.x, yC0 + hC / 2, ZF - 1, Math.PI);
   }
   function ambiente(on) {
-    sala.visible = on; chao.visible = !on;
-    cena.background = on ? new THREE.Color(BASE.ceu) : null;
-    cena.fog = on ? new THREE.Fog(BASE.ceu, 500, 1700) : null;
+    sala.visible = on; chao.visible = !on; corSala = on; pintar(destaqueAtual);
+    const ceu = on ? (BASE === BASE_ESCURO ? 0x1a1718 : 0xcfcfca) : null;
+    cena.background = on ? new THREE.Color(ceu) : null;
+    cena.fog = on ? new THREE.Fog(ceu, 900, 2600) : null;
   }
 
   // vista da cadeira: a câmera senta no lugar, na altura dos olhos, virada para o púlpito
-  const FOV_MAPA = 30, FOV_VISTA = 56;
+  const FOV_MAPA = 30, FOV_VISTA = 54;
   let vista = null, manual = null;
   const olharPara = new THREE.Vector3();
   function animarManual(paraPos, paraAlvo, paraFov, ms, fim) {
@@ -396,8 +449,8 @@ export function criarMapa3D(el, opts) {
     const e = c.esc || 1, pc = palco || { x: 0, z: 0, alto: 20 };
     // olho um pouco atrás do centro do assento (encostado), a ~1,2 m do chão
     const paraPalco = new THREE.Vector3(pc.x - c.x, 0, pc.z - c.z).normalize();
-    const olho = new THREE.Vector3(c.x, 3 + 15 * e, c.z).addScaledVector(paraPalco, -1.2 * e);
-    vista = { setor, num, olho, palco: new THREE.Vector3(pc.x, pc.alto * .75, pc.z), yaw: 0, pitch: 0 };
+    const olho = new THREE.Vector3(c.x, 3 + 14 * e, c.z).addScaledVector(paraPalco, -1.2 * e);
+    vista = { setor, num, olho, palco: new THREE.Vector3(pc.x, 48, (pc.z1 != null ? pc.z1 : pc.z)), yaw: 0, pitch: 0 };
     pino.visible = false; selos_visiveis(false); mostrarNumeros(null); pintar(null); ambiente(true);
     animarManual(olho, olho.clone().add(direcaoVista().multiplyScalar(100)), FOV_VISTA, ms);
     if (opts.aoMudar) opts.aoMudar({ setor, num, vista: true });
