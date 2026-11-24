@@ -374,7 +374,7 @@ export function criarMapa3D(el, opts) {
   // paredes cinza com painéis de madeira, teto claro com luzes quadradas e carpete escuro.
   // Escala: 1 m ~ 11 unidades (cadeira ~0,55 m; fileira ~0,95 m).
   const sala = new THREE.Group(); sala.visible = false; cena.add(sala);
-  let luzesSala = [], ambienteEnv = null, salaGeo = null, salaHall = null;
+  let luzesSala = [], ambienteEnv = null, salaGeo = null, salaHall = null, carpPlat = null;
   const tetoG = new THREE.Group(); sala.add(tetoG);
   function tela(w, h, desenho, rep) {
     const c = document.createElement('canvas'); c.width = w; c.height = h; desenho(c.getContext('2d'), w, h);
@@ -385,6 +385,8 @@ export function criarMapa3D(el, opts) {
   function plano(w, h, mat, x, y, z, ry) { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat); m.position.set(x, y, z); m.rotation.y = ry || 0; sala.add(m); return m; }
   {
     const escuro = BASE === BASE_ESCURO;
+    // texturas recortadas das fotos da sede (carpete, granito, madeira, pastilhas)
+    const foto = (arq, rx, ry) => { const t = new THREE.TextureLoader().load('tex/' + arq); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx, ry); t.anisotropy = 8; return t; };
     const pc = palco || { x: 0, z: 0, x0: -60, x1: 60, z0: -40, z1: 60 };
     const X0 = limites.x0 - 70, X1 = limites.x1 + 70, Z0 = limites.z0 - 90;
     // proporções da planta oficial (AutoCAD) da sede, medidas a partir do raio da primeira fileira (riMin):
@@ -396,7 +398,7 @@ export function criarMapa3D(el, opts) {
     const LARG = X1 - X0, PROF = ZF - Z0, ALT = 150, CX = (X0 + X1) / 2, CZ = (Z0 + ZF) / 2;
     salaGeo = { Z0, ZF, CX, ALT, palcoX: pc.x, riMin: riMin || 150, rMesa: mesaSom ? Math.abs((mesaSom.z0 + mesaSom.z1) / 2) : 0 };
     // carpete
-    const piso = new THREE.Mesh(new THREE.PlaneGeometry(LARG, PROF), new THREE.MeshStandardMaterial({ color: escuro ? 0x3a3b3d : 0x6f7174, roughness: 1 }));
+    const piso = new THREE.Mesh(new THREE.PlaneGeometry(LARG, PROF), new THREE.MeshStandardMaterial({ map: foto('carpete.jpg', LARG / 50, PROF / 25), color: escuro ? 0x6a6a6a : 0xd6d6d6, roughness: 1 }));
     piso.rotation.x = -Math.PI / 2; piso.position.set(CX, -.7, CZ); piso.receiveShadow = true; sala.add(piso);
     // paredes cinza com painéis de madeira e ar-condicionado
     const texParede = (comp) => tela(512, 256, (g, w, h) => {
@@ -434,13 +436,12 @@ export function criarMapa3D(el, opts) {
     const sbH = Math.sign(Z0) || -1, DH = 80, WH = Math.min(LARG * .45, 380), HH = 44;
     const zN = Z0, zF = Z0 + sbH * DH, zMid = (zN + zF) / 2, XH = pc.x;
     salaHall = { zN, zF, DH, sbH };
-    const pedra = tela(512, 512, (g, w, h) => {
-      const cores = ['#b6a993', '#8f8b86', '#a89c88', '#9a958e'];
-      for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) { g.fillStyle = cores[(i + j * 2) % 4]; g.fillRect(i * 128, j * 128, 128, 128); g.fillStyle = 'rgba(255,255,255,.05)'; g.fillRect(i * 128 + 10, j * 128 + 10, 60, 40); }
-      g.fillStyle = '#2b2b2e'; g.fillRect(0, 248, w, 18); g.fillRect(248, 0, 18, h);
-      g.strokeStyle = 'rgba(0,0,0,.12)'; for (let i = 0; i <= 4; i++) { g.beginPath(); g.moveTo(i * 128, 0); g.lineTo(i * 128, h); g.moveTo(0, i * 128); g.lineTo(w, i * 128); g.stroke(); }
-    }, [WH / 90, DH / 90]);
-    const pisoH = new THREE.Mesh(new THREE.PlaneGeometry(WH, DH), new THREE.MeshStandardMaterial({ map: pedra, roughness: .8, metalness: 0 }));
+    const pedra = tela(1024, 1024, (g, w, h) => { g.fillStyle = '#9d8f78'; g.fillRect(0, 0, w, h); }, [WH / 140, DH / 140]);
+    { const img = new Image(); img.onload = () => { const c = pedra.image, g = c.getContext('2d');
+        for (let x = 0; x < 1024; x += 256) for (let y = 0; y < 1024; y += 128) g.drawImage(img, x, y, 256, 128);
+        g.fillStyle = '#1f1f22'; g.fillRect(0, 470, 1024, 84); g.fillRect(470, 0, 84, 1024); g.fillRect(760, 760, 180, 180);
+        pedra.needsUpdate = true; }; img.src = 'tex/granito.jpg'; }
+    const pisoH = new THREE.Mesh(new THREE.PlaneGeometry(WH, DH), new THREE.MeshStandardMaterial({ map: pedra, roughness: .35, metalness: .05 }));
     pisoH.rotation.x = -Math.PI / 2; pisoH.position.set(XH, -.6, zMid); pisoH.receiveShadow = true; sala.add(pisoH);
     const branco = new THREE.MeshStandardMaterial({ color: 0xf1f0ec, roughness: .85 });
     const caixotao = tela(256, 256, (g, w, h) => { g.fillStyle = '#f4f4f1'; g.fillRect(0, 0, w, h); g.fillStyle = '#e2e2de'; g.fillRect(26, 26, w - 52, h - 52); g.strokeStyle = 'rgba(0,0,0,.05)'; for (let x = 26; x < w - 26; x += 25) { g.beginPath(); g.moveTo(x, 26); g.lineTo(x, h - 26); g.stroke(); } }, [WH / 60, DH / 60]);
@@ -451,13 +452,19 @@ export function criarMapa3D(el, opts) {
     [-1, 1].forEach(l => bloco(3, HH, DH, branco, XH + l * WH / 2, HH / 2, zMid));
     // parede entre hall e nave, com o vão das portas no centro
     const VAO = 34, AP = 30;
+    const madeiraH = new THREE.MeshStandardMaterial({ map: foto('madeira.jpg', 1, 1), color: 0xc89a72, roughness: .55 });
+    const madeiraParede = new THREE.MeshStandardMaterial({ map: foto('madeira.jpg', WH / 60, 2.2), color: 0xc89a72, roughness: .55 });
     [-1, 1].forEach(l => { const w = (WH - VAO) / 2; bloco(w, HH, 3, branco, XH + l * (VAO / 2 + w / 2), HH / 2, zN + sbH * 1.5); });
     bloco(VAO, HH - AP, 3, branco, XH, AP + (HH - AP) / 2, zN + sbH * 1.5);
-    const madeiraH = new THREE.MeshStandardMaterial({ color: 0x7a5236, roughness: .55 });
+    [-1, 1].forEach(l => { const w = (WH - VAO) / 2; bloco(w, AP + 2, .6, madeiraParede, XH + l * (VAO / 2 + w / 2), (AP + 2) / 2, zN + sbH * 3.2); });
+    // TVs sobre o balcão
+    [-1, 0, 1].forEach(k => { const tv = bloco(13, 7.5, .6, new THREE.MeshStandardMaterial({ color: 0x3a1f26, roughness: .25, metalness: .3 }), XH + WH * .3 + k * 14, 22, zN + sbH * 3.8); });
     [-1, 1].forEach(l => { const f = bloco(VAO / 2 - 1, AP, 1, madeiraH, XH + l * (VAO / 4 + 6), AP / 2, zN + sbH * 4); f.rotation.y = l * 1.15; }); // portas abertas
     // colunas brancas e balcão de madeira
     for (let i = 0; i < 3; i++) [-1, 1].forEach(l => bloco(5, HH, 5, branco, XH + l * (WH / 2 - 14), HH / 2, zN + sbH * (18 + i * 24)));
     bloco(40, 11, 12, madeiraH, XH + WH * .3, 5.5, zN + sbH * 22); bloco(42, 1, 14, new THREE.MeshStandardMaterial({ color: 0x3a2a20, roughness: .4 }), XH + WH * .3, 11.4, zN + sbH * 22);
+    const fachada = new THREE.MeshStandardMaterial({ map: foto('pastilha-branca.jpg', WH / 40, HH * 2.2 / 60), roughness: .6, color: escuro ? 0x9a9894 : 0xffffff });
+    const marrom = new THREE.MeshStandardMaterial({ map: foto('pastilha-marrom.jpg', 1, 3), roughness: .35 });
     // fachada: vidro jateado com a marca, portas de vidro no centro
     const jateado = tela(1024, 256, (g, w, h) => {
       g.fillStyle = '#cfd6db'; g.fillRect(0, 0, w, h);
@@ -470,11 +477,11 @@ export function criarMapa3D(el, opts) {
     const VF = 40;
     [-1, 1].forEach(l => { const w = (WH - VF) / 2, m = plano(w, HH * .72, vidroF, XH + l * (VF / 2 + w / 2), HH * .36, zF, 0); });
     plano(VF, HH * .72, vidroPorta, XH, HH * .36, zF, 0);
-    bloco(WH + 6, HH * .28, 3, branco, XH, HH * .72 + HH * .14, zF);
+    bloco(WH + 6, HH * .28, 3, fachada, XH, HH * .72 + HH * .14, zF);
     // por fora: calçada, letreiro e o prédio
     const calcada = new THREE.Mesh(new THREE.PlaneGeometry(WH * 3, 260), new THREE.MeshStandardMaterial({ color: escuro ? 0x3a3a3c : 0x8d8c88, roughness: 1 }));
     calcada.rotation.x = -Math.PI / 2; calcada.position.set(XH, -.8, zF + sbH * 130); sala.add(calcada);
-    const fachada = new THREE.MeshStandardMaterial({ color: escuro ? 0x7a7874 : 0xbdb8ae, roughness: .9 });
+    for (const k of [-2, -1, 1, 2]) { const col = bloco(9, HH * 1.2, 9, marrom, XH + k * (WH / 4.2), HH * .6, zF + sbH * 8); col.castShadow = true; }
     [-1, 1].forEach(l => bloco(WH, HH * 2.2, 6, fachada, XH + l * WH, HH * 1.1, zF + sbH * 3.5));
     bloco(WH * 3, HH * 1.2, 6, fachada, XH, HH + HH * .6, zF + sbH * 3.5);
     const letreiro = textoPlano('VERBO DA VIDA', 150, 24); letreiro.position.set(XH, HH * 1.35, zF + sbH * 7); letreiro.rotation.set(0, sbH < 0 ? 0 : Math.PI, 0); sala.add(letreiro);
@@ -620,7 +627,9 @@ export function criarMapa3D(el, opts) {
     sala.visible = on; chao.visible = !on; corSala = on; instDet.visible = on; inst.visible = !on;
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, on ? 1.5 : 2)); tamanho(); pintar(destaqueAtual); tomRealista(on);
     // plataformas dos setores viram carpete na vista
-    Object.values(plataformas).forEach(m => { if (!m.userData.cor) m.userData.cor = m.material.color.getHex(); m.material.color.setHex(on ? (BASE === BASE_ESCURO ? 0x2a2a2c : 0x55575a) : m.userData.cor); });
+    if (on && !carpPlat) { carpPlat = new THREE.TextureLoader().load('tex/carpete.jpg'); carpPlat.colorSpace = THREE.SRGBColorSpace; carpPlat.wrapS = carpPlat.wrapT = THREE.RepeatWrapping; carpPlat.repeat.set(1 / 50, 1 / 25); }
+    Object.values(plataformas).forEach(m => { if (!m.userData.cor) m.userData.cor = m.material.color.getHex();
+      m.material.color.setHex(on ? (BASE === BASE_ESCURO ? 0x5a5a5c : 0xb8b8b8) : m.userData.cor); m.material.map = on ? carpPlat : null; m.material.needsUpdate = true; });
     const ceu = on ? (BASE === BASE_ESCURO ? 0x1c2230 : 0xc9d6e4) : null;
     cena.background = on ? new THREE.Color(ceu) : null;
     cena.fog = on ? new THREE.Fog(ceu, 900, 2600) : null;
