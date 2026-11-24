@@ -457,12 +457,26 @@ export function criarMapa3D(el, opts) {
     [-1, 1].forEach(l => { const w = (WH - VAO) / 2; bloco(w, HH, 3, branco, XH + l * (VAO / 2 + w / 2), HH / 2, zN + sbH * 1.5); });
     bloco(VAO, HH - AP, 3, branco, XH, AP + (HH - AP) / 2, zN + sbH * 1.5);
     [-1, 1].forEach(l => { const w = (WH - VAO) / 2; bloco(w, AP + 2, .6, madeiraParede, XH + l * (VAO / 2 + w / 2), (AP + 2) / 2, zN + sbH * 3.2); });
-    // TVs sobre o balcão
-    [-1, 0, 1].forEach(k => { const tv = bloco(13, 7.5, .6, new THREE.MeshStandardMaterial({ color: 0x3a1f26, roughness: .25, metalness: .3 }), XH + WH * .3 + k * 14, 22, zN + sbH * 3.8); });
+    // balcão de informações encostado na parede da nave, à esquerda das portas (como nas fotos):
+    // painéis cinza com vidro e três TVs atrás, balcão com faixa de madeira em cima e base cinza
+    { const lado = sbH < 0 ? 1 : -1, bx = XH + lado * (VAO / 2 + 34), zb = zN + sbH * 3.4;
+      const cinzaP = new THREE.MeshStandardMaterial({ color: 0x9c968c, roughness: .6 });
+      const vidroB = new THREE.MeshStandardMaterial({ color: 0xc9d2d6, roughness: .08, metalness: .2, transparent: true, opacity: .55 });
+      bloco(52, 24, .5, cinzaP, bx, 12 + 6, zb);
+      bloco(50, 9, .4, vidroB, bx, 15, zb + sbH * .4);
+      const tvM = new THREE.MeshStandardMaterial({ color: 0x5a2a33, roughness: .2, metalness: .3, emissive: 0x3a1218, emissiveIntensity: .6 });
+      [-1, 0, 1].forEach(k => bloco(14.5, 8.2, .6, tvM, bx + k * 16.5, 25, zb + sbH * .6));
+      const base = new THREE.MeshStandardMaterial({ color: 0xb9bec2, roughness: .45 });
+      const zc = zN + sbH * 15;
+      bloco(56, 6.5, 9, base, bx, 3.25, zc); bloco(57, 5, 10, madeiraH, bx, 9, zc + sbH * .3);
+      bloco(57.5, .5, 11, madeiraH, bx, 11.7, zc + sbH * .2);
+      const ala = bloco(9, 6.5, 22, base, bx - lado * 27, 3.25, zc - sbH * 7); bloco(10, 5, 23, madeiraH, bx - lado * 27, 9, zc - sbH * 7);
+      // tapete escuro na frente das portas
+      const tap = new THREE.Mesh(new THREE.PlaneGeometry(44, 16), new THREE.MeshStandardMaterial({ color: 0x3e4247, roughness: 1 })); tap.rotation.x = -Math.PI / 2; tap.position.set(XH, -.45, zN + sbH * 10); sala.add(tap);
+    }
     [-1, 1].forEach(l => { const f = bloco(VAO / 2 - 1, AP, 1, madeiraH, XH + l * (VAO / 4 + 6), AP / 2, zN + sbH * 4); f.rotation.y = l * 1.15; }); // portas abertas
     // colunas brancas e balcão de madeira
     for (let i = 0; i < 3; i++) [-1, 1].forEach(l => bloco(5, HH, 5, branco, XH + l * (WH / 2 - 14), HH / 2, zN + sbH * (18 + i * 24)));
-    bloco(40, 11, 12, madeiraH, XH + WH * .3, 5.5, zN + sbH * 22); bloco(42, 1, 14, new THREE.MeshStandardMaterial({ color: 0x3a2a20, roughness: .4 }), XH + WH * .3, 11.4, zN + sbH * 22);
     const fachada = new THREE.MeshStandardMaterial({ map: foto('pastilha-branca.jpg', WH / 40, HH * 2.2 / 60), roughness: .6, color: escuro ? 0x9a9894 : 0xffffff });
     const marrom = new THREE.MeshStandardMaterial({ map: foto('pastilha-marrom.jpg', 1, 3), roughness: .35 });
     // fachada: vidro jateado com a marca, portas de vidro no centro
@@ -553,10 +567,22 @@ export function criarMapa3D(el, opts) {
     [-.3, .3, .38].forEach(f => caixa(.25, 14, .25, metal, pc.x + (pc.x1 - pc.x0) * f, TOPO + 7, zMeio));
     // degraus na frente do palco, com fita de LED
     const fita = new THREE.MeshBasicMaterial({ color: 0xffe2a8, toneMapped: false });
-    for (let i = 0; i < 3; i++) {
-      const h = TOPO * (i + 1) / 4, z = zFrente - 3 - (2 - i) * 6;
-      caixa(70, h, 6, preto2, pc.x, h / 2, z);
-      caixa(70, .3, .3, fita, pc.x, h + .2, z - 3);
+    // escada em "V" de carpete cinza, 6 degraus, corrimão de inox e caixas pretas com luzinhas quadradas nos lados
+    { const N = 6, hD = TOPO / N, pD = 3.2, ang = .5, larg0 = 30;
+      const carpEsc = new THREE.MeshStandardMaterial({ map: foto('carpete.jpg', 2, 1), color: 0x9a9a9a, roughness: 1 });
+      for (let i = 0; i < N; i++) {
+        const h = hD * (i + 1), recua = (N - 1 - i) * pD, w = larg0 + recua * 1.6, zp = zFrente - 1 - recua;
+        [-1, 1].forEach(l => { const d = new THREE.Mesh(new THREE.BoxGeometry(w / 2, h, pD + 1), carpEsc);
+          d.position.set(pc.x + l * (w / 4) * Math.cos(ang), h / 2, zp - (w / 4) * Math.sin(ang)); d.rotation.y = -l * ang; d.castShadow = d.receiveShadow = true; sala.add(d); });
+      }
+      const inox = new THREE.MeshStandardMaterial({ color: 0xd8dbe0, roughness: .2, metalness: 1 });
+      const x0 = pc.x + 3, zA = zFrente - 1 - (N - 1) * pD - 4, zB = zFrente + 2;
+      [[zA, 0], [zB, TOPO]].forEach(([z, y]) => caixa(.5, 9, .5, inox, x0, y + 4.5, z));
+      const bar = new THREE.Mesh(new THREE.CylinderGeometry(.25, .25, Math.hypot(zB - zA, TOPO), 10), inox);
+      bar.position.set(x0, 9 + TOPO / 2, (zA + zB) / 2); bar.rotation.x = Math.atan2(zB - zA, TOPO) * (zB > zA ? 1 : -1); sala.add(bar);
+      const luzQ = new THREE.MeshBasicMaterial({ color: 0xfff1d0, toneMapped: false });
+      [-1, 1].forEach(l => { const bxx = pc.x + l * 38; caixa(22, TOPO, 10, preto2, bxx, TOPO / 2, zFrente - 4);
+        for (let k = 0; k < 3; k++) { const q = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 1.1), luzQ); q.position.set(bxx - l * 6 + l * k * 3, TOPO * (.3 + k * .25), zFrente - 9.1); q.rotation.y = Math.PI; sala.add(q); } });
     }
     // treliça com refletores sobre o palco
     const yTr = ALT - 26, zTr = zFrente + 6;
