@@ -892,8 +892,11 @@ $('exVer').addEventListener('click',function(){if(EXP&&exAtual){var a=exAtual.sp
 $('exVoltar').addEventListener('click',function(){if(EXP)EXP.sairDaVista();});
 
 /* ===== Abertura: o vídeo de quem entra no auditório, só na primeira vez ===== */
+var ENTRADA_MIDIA='';
 function iniciarEntrada(){
   var forcar=/[?&]entrada=1/.test(location.search),visto=!forcar&&ler('mvv_abertura_v1'),reduz=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // a abertura em vídeo/fotos (fachada e hall) entra quando ENTRADA_MIDIA tiver um arquivo; até lá, só a descida do alto
+  if(!ENTRADA_MIDIA){abrirExplorar(!visto&&!reduz&&location.hash!=='#equipe');guardar('mvv_abertura_v1',1);return;}
   if(visto||reduz||location.hash==='#equipe'){abrirExplorar(false);return;}
   var ab=$('abertura'),v=$('abVideo'),fim=false;
   $('abNome').textContent=EV&&EV.nome&&EV.nome!=='Evento atual'?EV.nome:'Setores';
@@ -903,7 +906,7 @@ function iniciarEntrada(){
     abrirExplorar(true);
     setTimeout(function(){ab.classList.add('oculto');ab.classList.remove('saindo');v.removeAttribute('src');v.load();},750);
   }
-  ab.classList.remove('oculto');v.muted=true;v.src='entrada.mp4';
+  ab.classList.remove('oculto');v.muted=true;v.src=ENTRADA_MIDIA;
   v.ontimeupdate=function(){if(v.duration)$('abProg').style.width=(v.currentTime/v.duration*100)+'%';};
   v.onended=encerrar;v.onerror=encerrar;
   $('abPular').onclick=encerrar;
@@ -1278,8 +1281,8 @@ function iniciar(){
 })();
 </script>
 <div class="abertura oculto" id="abertura" aria-label="Entrada na igreja">
-  <div class="ab-fundo" style="background-image:url(entrada.jpg)"></div>
-  <video id="abVideo" muted playsinline preload="auto" poster="entrada.jpg"></video>
+  <div class="ab-fundo" id="abFundo"></div>
+  <video id="abVideo" muted playsinline preload="auto"></video>
   <div class="ab-texto"><small>Ministério Verbo da Vida</small><b id="abNome">Setores</b><span>Entrando no auditório</span></div>
   <div class="ab-barra"><i id="abProg"></i></div>
   <button class="ab-pular" type="button" id="abPular">Pular</button>
