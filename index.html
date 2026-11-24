@@ -478,7 +478,6 @@ import('./mapa3d.js').then(function(m){ window.Mapa3D = m; }).catch(function(e){
   <section class="intro oculto" id="intro" aria-label="Entrada na sede">
     <div class="intro-palco">
       <div class="intro-3d" id="intro3d"></div>
-      <div class="intro-foto" id="introFoto"></div>
       <div class="intro-texto" id="introTexto"><small>Ministério Verbo da Vida</small><b id="introNome">Setores</b><span>Role para entrar no auditório</span></div>
       <div class="intro-rolar" id="introRolar" aria-hidden="true"><i></i></div>
       <button class="intro-pular" type="button" id="introPular">Pular</button>
@@ -919,8 +918,8 @@ $('exVoltar').addEventListener('click',function(){if(EXP)EXP.sairDaVista();});
 
 /* ===== Abertura: o vídeo de quem entra no auditório, só na primeira vez ===== */
 /* ===== Entrada guiada pelo scroll (como o site de referência) =====
-   0 a 30%: a foto do hall avança até as portas do auditório
-   26 a 100%: o 3D entra pela porta do fundo, desce o corredor e sobe até a vista do auditório inteiro */
+   tudo em 3D: da rua, pela fachada de vidro, atravessa o hall, passa as portas da nave,
+   desce o corredor e sobe até a vista do auditório inteiro */
 var INTRO=null;
 function iniciarEntrada(){
   abrirExplorar(false);
@@ -938,15 +937,13 @@ function montarIntro(){
     var mapa;
     try{mapa=M.criarMapa3D($('intro3d'),{local:local(),setores:EV.setores,estado:estadoPart});}catch(e){console.error(e);sec.classList.add('oculto');$('telaEntrada').classList.remove('com-intro');return;}
     INTRO={mapa:mapa,pendente:false,visivel:true};
-    var foto=$('introFoto'),txt=$('introTexto'),rolar=$('introRolar'),cab=document.querySelector('#telaEntrada .barra-topo');
+    var txt=$('introTexto'),rolar=$('introRolar'),cab=document.querySelector('#telaEntrada .barra-topo');
     function cl(x){return x<0?0:x>1?1:x;}
     function quadro(){
       INTRO.pendente=false;
       var alt=sec.offsetHeight-innerHeight,p=cl((window.scrollY-sec.offsetTop+64)/(alt||1));
-      var f=cl(p/.3),ease=f*f*(3-2*f);
-      foto.style.transform='scale('+(1+1.9*ease)+')';foto.style.opacity=String(1-cl((p-.22)/.08));
       txt.style.opacity=String(1-cl(p/.1));rolar.style.opacity=String(1-cl(p/.05));
-      INTRO.mapa.percurso(cl((p-.24)/.76));
+      INTRO.mapa.percurso(p);
       $('telaEntrada').classList.toggle('com-intro',p<.98);
     }
     function pedir(){if(!INTRO.pendente&&INTRO.visivel){INTRO.pendente=true;requestAnimationFrame(quadro);}}

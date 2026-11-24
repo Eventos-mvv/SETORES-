@@ -374,7 +374,7 @@ export function criarMapa3D(el, opts) {
   // paredes cinza com painéis de madeira, teto claro com luzes quadradas e carpete escuro.
   // Escala: 1 m ~ 11 unidades (cadeira ~0,55 m; fileira ~0,95 m).
   const sala = new THREE.Group(); sala.visible = false; cena.add(sala);
-  let luzesSala = [], ambienteEnv = null, salaGeo = null;
+  let luzesSala = [], ambienteEnv = null, salaGeo = null, salaHall = null;
   const tetoG = new THREE.Group(); sala.add(tetoG);
   function tela(w, h, desenho, rep) {
     const c = document.createElement('canvas'); c.width = w; c.height = h; desenho(c.getContext('2d'), w, h);
@@ -428,6 +428,58 @@ export function criarMapa3D(el, opts) {
       const m = plano(comp, ALT, matParede(comp), (xa + xb) / 2, ALT / 2, (ZF + ZL) / 2, Math.PI + l * ANG);
       diag.push({ l, xa, xb, comp, m });
     });
+    // ===== hall de entrada (foyer) em 3D, atrás da parede do fundo, feito pela foto do hall e pela planta:
+    // piso de pedra bege e cinza com faixas escuras, teto branco com caixotões, colunas brancas,
+    // fachada de vidro jateado com a marca, balcão de madeira e as portas que dão para a nave
+    const sbH = Math.sign(Z0) || -1, DH = 80, WH = Math.min(LARG * .45, 380), HH = 44;
+    const zN = Z0, zF = Z0 + sbH * DH, zMid = (zN + zF) / 2, XH = pc.x;
+    salaHall = { zN, zF, DH, sbH };
+    const pedra = tela(512, 512, (g, w, h) => {
+      const cores = ['#b6a993', '#8f8b86', '#a89c88', '#9a958e'];
+      for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) { g.fillStyle = cores[(i + j * 2) % 4]; g.fillRect(i * 128, j * 128, 128, 128); g.fillStyle = 'rgba(255,255,255,.05)'; g.fillRect(i * 128 + 10, j * 128 + 10, 60, 40); }
+      g.fillStyle = '#2b2b2e'; g.fillRect(0, 248, w, 18); g.fillRect(248, 0, 18, h);
+      g.strokeStyle = 'rgba(0,0,0,.12)'; for (let i = 0; i <= 4; i++) { g.beginPath(); g.moveTo(i * 128, 0); g.lineTo(i * 128, h); g.moveTo(0, i * 128); g.lineTo(w, i * 128); g.stroke(); }
+    }, [WH / 90, DH / 90]);
+    const pisoH = new THREE.Mesh(new THREE.PlaneGeometry(WH, DH), new THREE.MeshStandardMaterial({ map: pedra, roughness: .8, metalness: 0 }));
+    pisoH.rotation.x = -Math.PI / 2; pisoH.position.set(XH, -.6, zMid); pisoH.receiveShadow = true; sala.add(pisoH);
+    const branco = new THREE.MeshStandardMaterial({ color: 0xf1f0ec, roughness: .85 });
+    const caixotao = tela(256, 256, (g, w, h) => { g.fillStyle = '#f4f4f1'; g.fillRect(0, 0, w, h); g.fillStyle = '#e2e2de'; g.fillRect(26, 26, w - 52, h - 52); g.strokeStyle = 'rgba(0,0,0,.05)'; for (let x = 26; x < w - 26; x += 25) { g.beginPath(); g.moveTo(x, 26); g.lineTo(x, h - 26); g.stroke(); } }, [WH / 60, DH / 60]);
+    const tetoH = new THREE.Mesh(new THREE.PlaneGeometry(WH, DH), new THREE.MeshBasicMaterial({ map: caixotao }));
+    tetoH.rotation.x = Math.PI / 2; tetoH.position.set(XH, HH, zMid); sala.add(tetoH);
+    const bloco = (w, h, d, mat, x, y, z) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); m.position.set(x, y, z); sala.add(m); return m; };
+    // paredes laterais do hall
+    [-1, 1].forEach(l => bloco(3, HH, DH, branco, XH + l * WH / 2, HH / 2, zMid));
+    // parede entre hall e nave, com o vão das portas no centro
+    const VAO = 34, AP = 30;
+    [-1, 1].forEach(l => { const w = (WH - VAO) / 2; bloco(w, HH, 3, branco, XH + l * (VAO / 2 + w / 2), HH / 2, zN + sbH * 1.5); });
+    bloco(VAO, HH - AP, 3, branco, XH, AP + (HH - AP) / 2, zN + sbH * 1.5);
+    const madeiraH = new THREE.MeshStandardMaterial({ color: 0x7a5236, roughness: .55 });
+    [-1, 1].forEach(l => { const f = bloco(VAO / 2 - 1, AP, 1, madeiraH, XH + l * (VAO / 4 + 6), AP / 2, zN + sbH * 4); f.rotation.y = l * 1.15; }); // portas abertas
+    // colunas brancas e balcão de madeira
+    for (let i = 0; i < 3; i++) [-1, 1].forEach(l => bloco(5, HH, 5, branco, XH + l * (WH / 2 - 14), HH / 2, zN + sbH * (18 + i * 24)));
+    bloco(40, 11, 12, madeiraH, XH + WH * .3, 5.5, zN + sbH * 22); bloco(42, 1, 14, new THREE.MeshStandardMaterial({ color: 0x3a2a20, roughness: .4 }), XH + WH * .3, 11.4, zN + sbH * 22);
+    // fachada: vidro jateado com a marca, portas de vidro no centro
+    const jateado = tela(1024, 256, (g, w, h) => {
+      g.fillStyle = '#cfd6db'; g.fillRect(0, 0, w, h);
+      g.fillStyle = 'rgba(70,70,70,.75)'; g.font = "800 46px 'Nunito Sans', system-ui, sans-serif"; g.textAlign = 'center'; g.fillText('VERBO DA VIDA', w / 2, 70);
+      g.fillStyle = '#8a7a6a'; g.fillRect(0, 160, w, 22);
+      g.strokeStyle = 'rgba(60,60,60,.35)'; g.lineWidth = 3; for (let x = 0; x <= w; x += 128) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, h); g.stroke(); }
+    });
+    const vidroF = new THREE.MeshStandardMaterial({ map: jateado, transparent: true, opacity: .96, roughness: .15, side: THREE.DoubleSide });
+    const vidroPorta = new THREE.MeshStandardMaterial({ color: 0xdfe8ee, transparent: true, opacity: .28, roughness: .05, side: THREE.DoubleSide, depthWrite: false });
+    const VF = 40;
+    [-1, 1].forEach(l => { const w = (WH - VF) / 2, m = plano(w, HH * .72, vidroF, XH + l * (VF / 2 + w / 2), HH * .36, zF, 0); });
+    plano(VF, HH * .72, vidroPorta, XH, HH * .36, zF, 0);
+    bloco(WH + 6, HH * .28, 3, branco, XH, HH * .72 + HH * .14, zF);
+    // por fora: calçada, letreiro e o prédio
+    const calcada = new THREE.Mesh(new THREE.PlaneGeometry(WH * 3, 260), new THREE.MeshStandardMaterial({ color: escuro ? 0x3a3a3c : 0x8d8c88, roughness: 1 }));
+    calcada.rotation.x = -Math.PI / 2; calcada.position.set(XH, -.8, zF + sbH * 130); sala.add(calcada);
+    const fachada = new THREE.MeshStandardMaterial({ color: escuro ? 0x7a7874 : 0xbdb8ae, roughness: .9 });
+    [-1, 1].forEach(l => bloco(WH, HH * 2.2, 6, fachada, XH + l * WH, HH * 1.1, zF + sbH * 3.5));
+    bloco(WH * 3, HH * 1.2, 6, fachada, XH, HH + HH * .6, zF + sbH * 3.5);
+    const letreiro = textoPlano('VERBO DA VIDA', 150, 24); letreiro.position.set(XH, HH * 1.35, zF + sbH * 7); letreiro.rotation.set(0, sbH < 0 ? 0 : Math.PI, 0); sala.add(letreiro);
+    const luzHall = new THREE.PointLight(0xfff6e8, .5, 0, 0); luzHall.position.set(XH, HH - 6, zMid); sala.add(luzHall);
+
     // teto curvo em faixas concêntricas ao palco (como na panorâmica): cada faixa um pouco mais alta,
     // com uma borda clara no degrau e luzes redondas seguindo os arcos
     const corTeto = escuro ? 0x8d8e8a : 0xd3d4d0;
@@ -569,7 +621,7 @@ export function criarMapa3D(el, opts) {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, on ? 1.5 : 2)); tamanho(); pintar(destaqueAtual); tomRealista(on);
     // plataformas dos setores viram carpete na vista
     Object.values(plataformas).forEach(m => { if (!m.userData.cor) m.userData.cor = m.material.color.getHex(); m.material.color.setHex(on ? (BASE === BASE_ESCURO ? 0x2a2a2c : 0x55575a) : m.userData.cor); });
-    const ceu = on ? (BASE === BASE_ESCURO ? 0x1a1718 : 0xcfcfca) : null;
+    const ceu = on ? (BASE === BASE_ESCURO ? 0x1c2230 : 0xc9d6e4) : null;
     cena.background = on ? new THREE.Color(ceu) : null;
     cena.fog = on ? new THREE.Fog(ceu, 900, 2600) : null;
   }
@@ -705,12 +757,16 @@ export function criarMapa3D(el, opts) {
     // distâncias pelo raio a partir do centro dos arcos (o palco fica no centro, a porta no fundo)
     const { Z0, ALT, palcoX: X, riMin: R, rMesa } = salaGeo, sb = Math.sign(Z0) || -1, zr = r => sb * r, R0 = Math.abs(Z0);
     const rM = rMesa || R0 * .8;
+    const DH = salaHall ? salaHall.DH : 80;
     const K = [
-      { t: 0,   p: [X, 15, zr(R0 - 8)],     a: [X, 30, zr(0)], fov: 60 },   // na porta do fundo
-      { t: .24, p: [X, 54, zr(rM)],         a: [X, 26, zr(0)], fov: 58 },   // passa por cima da mesa de som
-      { t: .5,  p: [X, 17, zr(R * 1.75)],    a: [X, 32, zr(0)], fov: 56 },   // desce o corredor entre as fileiras
-      { t: .66, p: [X, 18, zr(R * 1.25)],    a: [X, 34, zr(0)], fov: 54 },   // chegando às primeiras fileiras
-      { t: .84, p: [X, ALT - 20, zr(R * 2.3)], a: [X, 0, zr(R * .9)], fov: 62 }, // sobe olhando para baixo
+      { t: 0,   p: [X, 22, zr(R0 + DH + 150)], a: [X, 30, zr(R0 + DH)], fov: 56 },   // na rua, de frente para a fachada
+      { t: .14, p: [X, 15, zr(R0 + DH + 6)],   a: [X, 16, zr(R0)], fov: 60 },   // na porta de vidro
+      { t: .26, p: [X, 15, zr(R0 + 16)],       a: [X, 18, zr(0)], fov: 60 },    // atravessa o hall
+      { t: .34, p: [X, 16, zr(R0 - 10)],       a: [X, 30, zr(0)], fov: 60 },    // passa as portas da nave
+      { t: .48, p: [X, 54, zr(rM)],            a: [X, 26, zr(0)], fov: 58 },    // por cima da mesa de som
+      { t: .64, p: [X, 17, zr(R * 1.75)],    a: [X, 32, zr(0)], fov: 56 },   // desce o corredor entre as fileiras
+      { t: .76, p: [X, 18, zr(R * 1.25)],    a: [X, 34, zr(0)], fov: 54 },   // chegando às primeiras fileiras
+      { t: .9,  p: [X, ALT - 20, zr(R * 2.3)], a: [X, 0, zr(R * .9)], fov: 62 }, // sobe olhando para baixo
       { t: 1,   p: GERAL.cam.toArray(), a: GERAL.alvo.toArray(), fov: FOV_MAPA }
     ];
     let i = 0; while (i < K.length - 2 && t > K[i + 1].t) i++;
