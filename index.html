@@ -367,9 +367,9 @@ button.avatar:hover{background:var(--marca-h)}
 /* Abertura: entrada na igreja */
 .abertura{position:fixed;inset:0;z-index:80;background:#0d0a0b;overflow:hidden;transition:opacity .7s ease}
 .abertura.saindo{opacity:0;pointer-events:none}
-.ab-fundo{position:absolute;inset:-40px;background-size:cover;background-position:center;filter:blur(28px) brightness(.55)}
-.abertura video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
-@media (min-aspect-ratio:4/5){.abertura video{object-fit:contain}}
+/* a foto avança devagar até as portas de madeira do auditório (lado direito do hall) */
+.ab-foto{position:absolute;inset:0;background-size:cover;background-position:96% 50%;transform-origin:93% 50%;transform:scale(1);will-change:transform}
+.ab-foto.andando{transition:transform 3.8s cubic-bezier(.45,0,.75,.4);transform:scale(2.8)}
 .ab-texto{position:absolute;left:0;right:0;bottom:0;padding:90px 24px calc(34px + env(safe-area-inset-bottom));background:linear-gradient(0deg,rgba(13,10,11,.85),rgba(13,10,11,0));color:#fff;display:grid;gap:2px}
 .ab-texto small{font-size:13px;font-weight:700;color:#f3c9d1}
 .ab-texto b{font-size:clamp(30px,8vw,46px);font-weight:800;letter-spacing:-.02em;line-height:1.05}
@@ -892,26 +892,32 @@ $('exVer').addEventListener('click',function(){if(EXP&&exAtual){var a=exAtual.sp
 $('exVoltar').addEventListener('click',function(){if(EXP)EXP.sairDaVista();});
 
 /* ===== Abertura: o vídeo de quem entra no auditório, só na primeira vez ===== */
-var ENTRADA_MIDIA='';
+var ENTRADA_FOTOS=[{src:'entrada-hall.jpg',legenda:'Bem-vindo à sede'}]; // a fachada entra no começo da lista quando chegar
 function iniciarEntrada(){
   var forcar=/[?&]entrada=1/.test(location.search),visto=!forcar&&ler('mvv_abertura_v1'),reduz=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
-  // a abertura em vídeo/fotos (fachada e hall) entra quando ENTRADA_MIDIA tiver um arquivo; até lá, só a descida do alto
-  if(!ENTRADA_MIDIA){abrirExplorar(!visto&&!reduz&&location.hash!=='#equipe');guardar('mvv_abertura_v1',1);return;}
-  if(visto||reduz||location.hash==='#equipe'){abrirExplorar(false);return;}
-  var ab=$('abertura'),v=$('abVideo'),fim=false;
+  if(visto||reduz||location.hash==='#equipe'||!ENTRADA_FOTOS.length){abrirExplorar(false);return;}
+  var ab=$('abertura'),foto=$('abFoto'),fim=false,i=0,t=null;
   $('abNome').textContent=EV&&EV.nome&&EV.nome!=='Evento atual'?EV.nome:'Setores';
   function encerrar(){
-    if(fim)return;fim=true;guardar('mvv_abertura_v1',1);
-    ab.classList.add('saindo');try{v.pause();}catch(e){}
-    abrirExplorar(true);
-    setTimeout(function(){ab.classList.add('oculto');ab.classList.remove('saindo');v.removeAttribute('src');v.load();},750);
+    if(fim)return;fim=true;clearTimeout(t);guardar('mvv_abertura_v1',1);
+    ab.classList.add('saindo');abrirExplorar(true);
+    setTimeout(function(){ab.classList.add('oculto');ab.classList.remove('saindo');foto.classList.remove('andando');},750);
   }
-  ab.classList.remove('oculto');v.muted=true;v.src=ENTRADA_MIDIA;
-  v.ontimeupdate=function(){if(v.duration)$('abProg').style.width=(v.currentTime/v.duration*100)+'%';};
-  v.onended=encerrar;v.onerror=encerrar;
-  $('abPular').onclick=encerrar;
-  var p=v.play();if(p&&p.catch)p.catch(function(){setTimeout(encerrar,1200);});
-  setTimeout(encerrar,12000);
+  function passo(){
+    if(fim)return;if(i>=ENTRADA_FOTOS.length){encerrar();return;}
+    var f=ENTRADA_FOTOS[i],img=new Image();
+    img.onload=function(){
+      if(fim)return;foto.classList.remove('andando');foto.style.backgroundImage='url('+f.src+')';$('abLegenda').textContent=f.legenda;
+      $('abProg').style.transition='none';$('abProg').style.width=(i/ENTRADA_FOTOS.length*100)+'%';
+      void foto.offsetWidth;
+      setTimeout(function(){foto.classList.add('andando');$('abProg').style.transition='width 3.6s linear';$('abProg').style.width=((i+1)/ENTRADA_FOTOS.length*100)+'%';},500);
+      t=setTimeout(function(){i++;passo();},4100);
+    };
+    img.onerror=function(){i++;passo();};
+    img.src=f.src;
+  }
+  ab.classList.remove('oculto');$('abPular').onclick=encerrar;passo();
+  setTimeout(encerrar,6000*ENTRADA_FOTOS.length+3000);
 }
 function estadoPart(st,n){var k=st+'-'+n;if(!P.porChave[k])return 'vazia';var e=PP.pres[k];return e&&e.presente?'presente':'vendida';}
 function limparPart3d(){$('telaEntrada').classList.remove('lado');if(!EXP)pararPresencaPart();if(partMapa3d){partMapa3d.destruir();partMapa3d=null;}}
@@ -1281,9 +1287,8 @@ function iniciar(){
 })();
 </script>
 <div class="abertura oculto" id="abertura" aria-label="Entrada na igreja">
-  <div class="ab-fundo" id="abFundo"></div>
-  <video id="abVideo" muted playsinline preload="auto"></video>
-  <div class="ab-texto"><small>Ministério Verbo da Vida</small><b id="abNome">Setores</b><span>Entrando no auditório</span></div>
+  <div class="ab-foto" id="abFoto"></div>
+  <div class="ab-texto"><small>Ministério Verbo da Vida</small><b id="abNome">Setores</b><span id="abLegenda">Bem-vindo à sede</span></div>
   <div class="ab-barra"><i id="abProg"></i></div>
   <button class="ab-pular" type="button" id="abPular">Pular</button>
 </div>

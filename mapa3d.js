@@ -386,7 +386,12 @@ export function criarMapa3D(el, opts) {
     const escuro = BASE === BASE_ESCURO;
     const pc = palco || { x: 0, z: 0, x0: -60, x1: 60, z0: -40, z1: 60 };
     const X0 = limites.x0 - 70, X1 = limites.x1 + 70, Z0 = limites.z0 - 90;
-    const ZF = (pc.z1 != null ? pc.z1 : limites.z1) + 6;            // parede do fundo do palco
+    // proporções da planta oficial (AutoCAD) da sede, medidas a partir do raio da primeira fileira (riMin):
+    // parede do palco a 0,125·riMin à frente do centro dos arcos; parede preta com 1,63·riMin de largura;
+    // paredes diagonais saindo do palco a ~16° até as laterais
+    const raios = Object.values(loc.setores).filter(st => st.arco).map(st => st.arco[0]);
+    const riMin = raios.length ? Math.min(...raios) : 0;
+    const ZF = riMin ? -riMin * .125 : (pc.z1 != null ? pc.z1 : limites.z1) + 6;   // parede do fundo do palco
     const LARG = X1 - X0, PROF = ZF - Z0, ALT = 150, CX = (X0 + X1) / 2, CZ = (Z0 + ZF) / 2;
     // carpete
     const piso = new THREE.Mesh(new THREE.PlaneGeometry(LARG, PROF), new THREE.MeshStandardMaterial({ color: escuro ? 0x3a3b3d : 0x6f7174, roughness: 1 }));
@@ -401,8 +406,12 @@ export function criarMapa3D(el, opts) {
       g.fillStyle = '#e9e8e3'; g.fillRect(40, 222, 80, 10); g.fillRect(390, 222, 80, 10);
     }, [comp / 170, 1]);
     const matParede = c => new THREE.MeshStandardMaterial({ map: texParede(c), roughness: .95, color: escuro ? 0x8a8a8a : 0xffffff });
-    plano(PROF, ALT, matParede(PROF), X0, ALT / 2, CZ, Math.PI / 2);
-    plano(PROF, ALT, matParede(PROF), X1, ALT / 2, CZ, -Math.PI / 2);
+    const LP0 = riMin ? riMin * 1.63 : Math.max(220, Math.min(LARG * .4, (pc.x1 - pc.x0) * 1.25));
+    const ANG = riMin ? 16 * Math.PI / 180 : 0;
+    const ZL = ZF - Math.tan(ANG) * (X1 - pc.x - LP0 / 2);           // onde a parede diagonal encontra a lateral
+    const PL = ZL - Z0;
+    plano(PL, ALT, matParede(PL), X0, ALT / 2, Z0 + PL / 2, Math.PI / 2);
+    plano(PL, ALT, matParede(PL), X1, ALT / 2, Z0 + PL / 2, -Math.PI / 2);
     plano(LARG, ALT, new THREE.MeshStandardMaterial({ color: escuro ? 0x6c6d6a : 0xb9bab5, roughness: .95 }), CX, ALT / 2, Z0, 0);
     { // fundo da nave (panorâmica do palco): portas de madeira no centro, dois painéis cinza grandes e prateleiras
       const madeira = new THREE.MeshStandardMaterial({ color: 0x8a6446, roughness: .7 }), painel = new THREE.MeshStandardMaterial({ color: escuro ? 0x55565a : 0x8d8f93, roughness: .9 });
@@ -410,7 +419,13 @@ export function criarMapa3D(el, opts) {
       const prat = new THREE.MeshStandardMaterial({ color: 0x4a4b4e, roughness: .8 });
       [-1, 1].forEach(l => { const pr = new THREE.Mesh(new THREE.BoxGeometry(LARG * .16, 2, 6), prat); pr.position.set(CX + l * LARG * .3, 44, Z0 + 3); sala.add(pr); });
     }
-    plano(LARG, ALT, matParede(LARG), CX, ALT / 2, ZF + 2, Math.PI);
+    // paredes diagonais dos dois lados do palco
+    const diag = [];
+    [-1, 1].forEach(l => {
+      const xa = pc.x + l * LP0 / 2, xb = l < 0 ? X0 : X1, comp = Math.hypot(xb - xa, ZL - ZF);
+      const m = plano(comp, ALT, matParede(comp), (xa + xb) / 2, ALT / 2, (ZF + ZL) / 2, Math.PI + l * ANG);
+      diag.push({ l, xa, xb, comp, m });
+    });
     // teto curvo em faixas concêntricas ao palco (como na panorâmica): cada faixa um pouco mais alta,
     // com uma borda clara no degrau e luzes redondas seguindo os arcos
     const corTeto = escuro ? 0x8d8e8a : 0xd3d4d0;
@@ -434,7 +449,7 @@ export function criarMapa3D(el, opts) {
       }
     });
     // parede preta do palco
-    const LP = Math.max(220, Math.min(LARG * .4, (pc.x1 - pc.x0) * 1.25)), preto = new THREE.MeshStandardMaterial({ color: 0x141214, roughness: .8 });
+    const LP = LP0, preto = new THREE.MeshStandardMaterial({ color: 0x141214, roughness: .8 });
     plano(LP, ALT - 14, preto, pc.x, (ALT - 14) / 2, ZF, Math.PI);
     // faixa escura do teto sobre o palco
     const sanca = new THREE.Mesh(new THREE.BoxGeometry(LP + 80, 14, 70), new THREE.MeshStandardMaterial({ color: 0x1c1a1c, roughness: .9 }));
@@ -502,7 +517,8 @@ export function criarMapa3D(el, opts) {
     const matVert = new THREE.MeshBasicMaterial({ map: telaVert, toneMapped: false });
     [-1, 1].forEach(lado => {
       const hV = LP * .3, wV = hV * 9 / 16;
-      const m = plano(wV, hV, matVert, pc.x + lado * (LP / 2 + 58), 40 + hV / 2, ZF - 34, Math.PI - lado * .42);
+      const dg = diag.find(d => d.l === lado), t = .3, xv = dg.xa + (dg.xb - dg.xa) * t, zv = ZF + (ZL - ZF) * t;
+      const m = plano(wV, hV, matVert, xv, 40 + hV / 2, zv, Math.PI + lado * ANG); m.translateZ(4);
       const moldura = new THREE.Mesh(new THREE.BoxGeometry(wV + 3, hV + 3, 2), new THREE.MeshStandardMaterial({ color: 0x0c0b0c, roughness: .6 }));
       moldura.position.copy(m.position); moldura.rotation.copy(m.rotation); moldura.translateZ(-1.2); sala.add(moldura);
     });
