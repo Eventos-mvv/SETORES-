@@ -364,6 +364,23 @@ button.avatar:hover{background:var(--marca-h)}
 .leg-part i.vendida.sala{background:#2e3033}
 .leg-part i.livre{background:var(--vazia3d)}
 .leg-part i.livre.sala{background:#b9bcc2}
+/* Entrada guiada pelo scroll: hall, porta, nave e a vista de cima */
+.intro{position:relative;height:460vh;margin-top:-64px}
+.intro-palco{position:sticky;top:0;height:100vh;height:100svh;overflow:hidden;background:#0d0a0b}
+.intro-3d,.intro-foto{position:absolute;inset:0}
+.intro-3d canvas{display:block;width:100%;height:100%}
+.intro-foto{background:url(entrada-hall.jpg) 96% 50%/cover no-repeat;transform-origin:93% 50%;will-change:transform,opacity}
+.intro-texto{position:absolute;left:0;right:0;bottom:0;padding:120px max(5vw,22px) calc(70px + env(safe-area-inset-bottom));background:linear-gradient(0deg,rgba(13,10,11,.82),rgba(13,10,11,0));color:#fff;display:grid;gap:4px;pointer-events:none}
+.intro-texto small{font-size:14px;font-weight:700;color:#f3c9d1}
+.intro-texto b{font-size:clamp(40px,9vw,76px);font-weight:800;letter-spacing:-.03em;line-height:1}
+.intro-texto span{font-size:16px;font-weight:600;color:#e8d9db}
+.intro-rolar{position:absolute;left:50%;bottom:calc(22px + env(safe-area-inset-bottom));width:26px;height:40px;margin-left:-13px;border:2px solid rgba(255,255,255,.7);border-radius:14px;pointer-events:none}
+.intro-rolar i{position:absolute;left:50%;top:8px;width:4px;height:8px;margin-left:-2px;border-radius:2px;background:#fff;animation:rolar 1.6s ease-in-out infinite}
+@keyframes rolar{0%{transform:translateY(0);opacity:1}80%{transform:translateY(12px);opacity:0}100%{opacity:0}}
+.intro-pular{position:absolute;top:calc(78px + env(safe-area-inset-top));right:16px;min-height:44px;padding:0 18px;border-radius:999px;background:rgba(255,255,255,.18);color:#fff;font-weight:800;font-size:15px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);z-index:2}
+#telaEntrada.com-intro .barra-topo{background:transparent;backdrop-filter:none;-webkit-backdrop-filter:none}
+#telaEntrada.com-intro .barra-topo .marca span,#telaEntrada.com-intro .barra-topo .btn-ico,#telaEntrada.com-intro .barra-topo .btn-txt{color:#fff}
+@media (prefers-reduced-motion:reduce){.intro-rolar i{animation:none}}
 /* Abertura: entrada na igreja */
 .abertura{position:fixed;inset:0;z-index:80;background:#0d0a0b;overflow:hidden;transition:opacity .7s ease}
 .abertura.saindo{opacity:0;pointer-events:none}
@@ -458,7 +475,16 @@ import('./mapa3d.js').then(function(m){ window.Mapa3D = m; }).catch(function(e){
     <button class="btn-instalar oculto" type="button" data-instalar><svg><use href="#i-baixar"/></svg>Instalar app</button>
     <button class="btn-txt" id="btnTrocarEvento" type="button">Trocar evento</button>
   </div></header>
-  <main class="conteudo estreito">
+  <section class="intro oculto" id="intro" aria-label="Entrada na sede">
+    <div class="intro-palco">
+      <div class="intro-3d" id="intro3d"></div>
+      <div class="intro-foto" id="introFoto"></div>
+      <div class="intro-texto" id="introTexto"><small>Ministério Verbo da Vida</small><b id="introNome">Setores</b><span>Role para entrar no auditório</span></div>
+      <div class="intro-rolar" id="introRolar" aria-hidden="true"><i></i></div>
+      <button class="intro-pular" type="button" id="introPular">Pular</button>
+    </div>
+  </section>
+  <main class="conteudo estreito" id="mainEntrada">
     <h1 id="evNome">Evento</h1>
     <div class="meta" id="evMeta"></div>
 
@@ -846,7 +872,7 @@ function realcar(nome,q){
 }
 
 /* ================= Entrada ================= */
-function trocarAba(q){var p=q==='part';$('abaPart').setAttribute('aria-selected',p);$('abaEquipe').setAttribute('aria-selected',!p);$('painelPart').classList.toggle('oculto',!p);$('painelEquipe').classList.toggle('oculto',p);$('telaEntrada').classList.toggle('lado',p&&!!$('resultadoPart').innerHTML);}
+function trocarAba(q){var p=q==='part';$('abaPart').setAttribute('aria-selected',p);$('abaEquipe').setAttribute('aria-selected',!p);$('painelPart').classList.toggle('oculto',!p);$('painelEquipe').classList.toggle('oculto',p);$('telaEntrada').classList.toggle('lado',p&&!!$('resultadoPart').innerHTML);if(!p)fecharIntro();}
 $('abaPart').addEventListener('click',function(){trocarAba('part');});
 $('abaEquipe').addEventListener('click',function(){trocarAba('equipe');});
 
@@ -892,32 +918,50 @@ $('exVer').addEventListener('click',function(){if(EXP&&exAtual){var a=exAtual.sp
 $('exVoltar').addEventListener('click',function(){if(EXP)EXP.sairDaVista();});
 
 /* ===== Abertura: o vídeo de quem entra no auditório, só na primeira vez ===== */
-var ENTRADA_FOTOS=[{src:'entrada-hall.jpg',legenda:'Bem-vindo à sede'}]; // a fachada entra no começo da lista quando chegar
+/* ===== Entrada guiada pelo scroll (como o site de referência) =====
+   0 a 30%: a foto do hall avança até as portas do auditório
+   26 a 100%: o 3D entra pela porta do fundo, desce o corredor e sobe até a vista do auditório inteiro */
+var INTRO=null;
 function iniciarEntrada(){
-  var forcar=/[?&]entrada=1/.test(location.search),visto=!forcar&&ler('mvv_abertura_v1'),reduz=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
-  if(visto||reduz||location.hash==='#equipe'||!ENTRADA_FOTOS.length){abrirExplorar(false);return;}
-  var ab=$('abertura'),foto=$('abFoto'),fim=false,i=0,t=null;
-  $('abNome').textContent=EV&&EV.nome&&EV.nome!=='Evento atual'?EV.nome:'Setores';
-  function encerrar(){
-    if(fim)return;fim=true;clearTimeout(t);guardar('mvv_abertura_v1',1);
-    ab.classList.add('saindo');abrirExplorar(true);
-    setTimeout(function(){ab.classList.add('oculto');ab.classList.remove('saindo');foto.classList.remove('andando');},750);
-  }
-  function passo(){
-    if(fim)return;if(i>=ENTRADA_FOTOS.length){encerrar();return;}
-    var f=ENTRADA_FOTOS[i],img=new Image();
-    img.onload=function(){
-      if(fim)return;foto.classList.remove('andando');foto.style.backgroundImage='url('+f.src+')';$('abLegenda').textContent=f.legenda;
-      $('abProg').style.transition='none';$('abProg').style.width=(i/ENTRADA_FOTOS.length*100)+'%';
-      void foto.offsetWidth;
-      setTimeout(function(){foto.classList.add('andando');$('abProg').style.transition='width 3.6s linear';$('abProg').style.width=((i+1)/ENTRADA_FOTOS.length*100)+'%';},500);
-      t=setTimeout(function(){i++;passo();},4100);
-    };
-    img.onerror=function(){i++;passo();};
-    img.src=f.src;
-  }
-  ab.classList.remove('oculto');$('abPular').onclick=encerrar;passo();
-  setTimeout(encerrar,6000*ENTRADA_FOTOS.length+3000);
+  abrirExplorar(false);
+  var reduz=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if(reduz||location.hash==='#equipe'){return;}
+  montarIntro();
+}
+function montarIntro(){
+  if(INTRO)return;
+  var sec=$('intro');
+  com3D(function(M){
+    if(INTRO)return;
+    sec.classList.remove('oculto');$('telaEntrada').classList.add('com-intro');
+    $('introNome').textContent=EV&&EV.nome&&EV.nome!=='Evento atual'?EV.nome:'Setores';
+    var mapa;
+    try{mapa=M.criarMapa3D($('intro3d'),{local:local(),setores:EV.setores,estado:estadoPart});}catch(e){console.error(e);sec.classList.add('oculto');$('telaEntrada').classList.remove('com-intro');return;}
+    INTRO={mapa:mapa,pendente:false,visivel:true};
+    var foto=$('introFoto'),txt=$('introTexto'),rolar=$('introRolar'),cab=document.querySelector('#telaEntrada .barra-topo');
+    function cl(x){return x<0?0:x>1?1:x;}
+    function quadro(){
+      INTRO.pendente=false;
+      var alt=sec.offsetHeight-innerHeight,p=cl((window.scrollY-sec.offsetTop+64)/(alt||1));
+      var f=cl(p/.3),ease=f*f*(3-2*f);
+      foto.style.transform='scale('+(1+1.9*ease)+')';foto.style.opacity=String(1-cl((p-.22)/.08));
+      txt.style.opacity=String(1-cl(p/.1));rolar.style.opacity=String(1-cl(p/.05));
+      INTRO.mapa.percurso(cl((p-.24)/.76));
+      $('telaEntrada').classList.toggle('com-intro',p<.98);
+    }
+    function pedir(){if(!INTRO.pendente&&INTRO.visivel){INTRO.pendente=true;requestAnimationFrame(quadro);}}
+    INTRO.pedir=pedir;
+    addEventListener('scroll',pedir,{passive:true});addEventListener('resize',pedir);
+    INTRO.obs=new IntersectionObserver(function(en){INTRO.visivel=en[0].isIntersecting;INTRO.mapa.pausar(!INTRO.visivel);if(INTRO.visivel)pedir();});
+    INTRO.obs.observe(sec);
+    $('introPular').onclick=function(){window.scrollTo({top:$('mainEntrada').getBoundingClientRect().top+window.scrollY-70,behavior:'smooth'});};
+    quadro();
+  },function(){});
+}
+function fecharIntro(){
+  if(!INTRO)return;removeEventListener('scroll',INTRO.pedir);removeEventListener('resize',INTRO.pedir);
+  INTRO.obs.disconnect();INTRO.mapa.destruir();INTRO=null;$('intro3d').innerHTML='';
+  $('intro').classList.add('oculto');$('telaEntrada').classList.remove('com-intro');
 }
 function estadoPart(st,n){var k=st+'-'+n;if(!P.porChave[k])return 'vazia';var e=PP.pres[k];return e&&e.presente?'presente':'vendida';}
 function limparPart3d(){$('telaEntrada').classList.remove('lado');if(!EXP)pararPresencaPart();if(partMapa3d){partMapa3d.destruir();partMapa3d=null;}}
@@ -985,7 +1029,7 @@ $('btnEntrar').addEventListener('click',entrarEquipe);
 var sessao=null;
 function iniciarSessao(s){sessao=s;guardar('mvv_sessao_'+EV.id,s);if(s.setor==='SUPERVISOR')abrirSup();else abrirOp();atualizarCabecalho();}
 function sairSessao(){guardar('mvv_sessao_'+EV.id,null);pararOp();pararSup();fecharFicha();sessao=null;trocarAba('equipe');mostrar('telaEntrada');}
-function pararTudo(){fecharExplorar();limparPart3d();pararOp();pararSup();fecharFicha();sessao=null;if(refPart)refPart.off();if(refMeta)refMeta.off();refPart=refMeta=null;ultimoValor=null;}
+function pararTudo(){fecharIntro();fecharExplorar();limparPart3d();pararOp();pararSup();fecharFicha();sessao=null;if(refPart)refPart.off();if(refMeta)refMeta.off();refPart=refMeta=null;ultimoValor=null;}
 
 var con=false,jaCon=false;
 db.ref('.info/connected').on('value',function(s){

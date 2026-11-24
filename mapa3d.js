@@ -374,7 +374,8 @@ export function criarMapa3D(el, opts) {
   // paredes cinza com painéis de madeira, teto claro com luzes quadradas e carpete escuro.
   // Escala: 1 m ~ 11 unidades (cadeira ~0,55 m; fileira ~0,95 m).
   const sala = new THREE.Group(); sala.visible = false; cena.add(sala);
-  let luzesSala = [], ambienteEnv = null;
+  let luzesSala = [], ambienteEnv = null, salaGeo = null;
+  const tetoG = new THREE.Group(); sala.add(tetoG);
   function tela(w, h, desenho, rep) {
     const c = document.createElement('canvas'); c.width = w; c.height = h; desenho(c.getContext('2d'), w, h);
     const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
@@ -393,6 +394,7 @@ export function criarMapa3D(el, opts) {
     const riMin = raios.length ? Math.min(...raios) : 0;
     const ZF = riMin ? -riMin * .125 : (pc.z1 != null ? pc.z1 : limites.z1) + 6;   // parede do fundo do palco
     const LARG = X1 - X0, PROF = ZF - Z0, ALT = 150, CX = (X0 + X1) / 2, CZ = (Z0 + ZF) / 2;
+    salaGeo = { Z0, ZF, CX, ALT, palcoX: pc.x, riMin: riMin || 150, rMesa: mesaSom ? Math.abs((mesaSom.z0 + mesaSom.z1) / 2) : 0 };
     // carpete
     const piso = new THREE.Mesh(new THREE.PlaneGeometry(LARG, PROF), new THREE.MeshStandardMaterial({ color: escuro ? 0x3a3b3d : 0x6f7174, roughness: 1 }));
     piso.rotation.x = -Math.PI / 2; piso.position.set(CX, -.7, CZ); piso.receiveShadow = true; sala.add(piso);
@@ -430,7 +432,7 @@ export function criarMapa3D(el, opts) {
     // com uma borda clara no degrau e luzes redondas seguindo os arcos
     const corTeto = escuro ? 0x8d8e8a : 0xd3d4d0;
     const fundoTeto = new THREE.Mesh(new THREE.PlaneGeometry(LARG, PROF), new THREE.MeshBasicMaterial({ color: escuro ? 0x7e7f7b : 0xc6c7c2 }));
-    fundoTeto.rotation.x = Math.PI / 2; fundoTeto.position.set(CX, ALT + 36, CZ); sala.add(fundoTeto);
+    fundoTeto.rotation.x = Math.PI / 2; fundoTeto.position.set(CX, ALT + 36, CZ); tetoG.add(fundoTeto);
     const cxT = pc.x, czT = pc.z1 != null ? pc.z1 : 0, rMax = Math.hypot(LARG / 2, PROF) + 40;
     const luzTeto = new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false }), discoLuz = new THREE.CircleGeometry(2.4, 14);
     const bordaTeto = new THREE.MeshBasicMaterial({ color: escuro ? 0xb9bab5 : 0xf2f2ee, side: THREE.DoubleSide });
@@ -438,14 +440,14 @@ export function criarMapa3D(el, opts) {
     faixas.forEach((r, n) => {
       const r2 = faixas[n + 1] || rMax, y = ALT + 30 - n * 7;
       const anel = new THREE.Mesh(new THREE.RingGeometry(r, r2, 96, 1, 0, Math.PI), new THREE.MeshBasicMaterial({ color: corTeto, side: THREE.DoubleSide }));
-      anel.rotation.x = -Math.PI / 2; anel.position.set(cxT, y, czT); sala.add(anel);
+      anel.rotation.x = -Math.PI / 2; anel.position.set(cxT, y, czT); tetoG.add(anel);
       const borda = new THREE.Mesh(new THREE.CylinderGeometry(r, r, 7, 96, 1, true, Math.PI / 2, Math.PI), bordaTeto);
-      borda.position.set(cxT, y - 3.5, czT); sala.add(borda);
+      borda.position.set(cxT, y - 3.5, czT); tetoG.add(borda);
       const rl = (r + r2) / 2, nLuz = Math.round(Math.PI * rl / 55);
       for (let k = 1; k < nLuz; k++) {
         const a = Math.PI * k / nLuz, x = cxT + rl * Math.cos(a), z = czT - rl * Math.sin(a);
         if (x < X0 + 4 || x > X1 - 4 || z < Z0 + 4) continue;
-        const d = new THREE.Mesh(discoLuz, luzTeto); d.rotation.x = Math.PI / 2; d.position.set(x, y - .2, z); sala.add(d);
+        const d = new THREE.Mesh(discoLuz, luzTeto); d.rotation.x = Math.PI / 2; d.position.set(x, y - .2, z); tetoG.add(d);
       }
     });
     // parede preta do palco
@@ -666,10 +668,11 @@ export function criarMapa3D(el, opts) {
   const obs = new ResizeObserver(tamanho); obs.observe(el); tamanho();
   ctr.target.copy(GERAL.alvo); cam.position.copy(GERAL.cam);
 
-  let vivo = true; const ini = performance.now();
+  let vivo = true, pausado = false; const ini = performance.now();
   (function loop(agora) {
     if (!vivo) return;
     requestAnimationFrame(loop);
+    if (pausado) return;
     if (anim) anim(agora);
     if (pino.visible) {
       const t = (agora - ini) / 1000, o = Math.sin(t * 2.6);
@@ -691,6 +694,32 @@ export function criarMapa3D(el, opts) {
     cam.position.set(GERAL.alvo.x, GERAL.alvo.y + d * 2.2, GERAL.alvo.z + d * .25); ctr.target.copy(GERAL.alvo);
     voar(GERAL.alvo.clone(), GERAL.cam.clone(), 2800);
   } else visaoGeral(1);
+  // percurso de entrada guiado pelo scroll (t de 0 a 1): entra pela porta do fundo, desce o corredor central
+  // em direção ao palco e no fim sobe até a vista do auditório inteiro
+  let noPercurso = false;
+  const _p = new THREE.Vector3(), _a = new THREE.Vector3();
+  function percurso(t) {
+    if (!salaGeo) return;
+    if (!noPercurso) { noPercurso = true; vista = null; anim = null; selos_visiveis(false); mostrarNumeros(null); pino.visible = false; ambiente(true); ctr.enabled = false; manual = { alvo: new THREE.Vector3() }; }
+    t = Math.max(0, Math.min(1, t));
+    // distâncias pelo raio a partir do centro dos arcos (o palco fica no centro, a porta no fundo)
+    const { Z0, ALT, palcoX: X, riMin: R, rMesa } = salaGeo, sb = Math.sign(Z0) || -1, zr = r => sb * r, R0 = Math.abs(Z0);
+    const rM = rMesa || R0 * .8;
+    const K = [
+      { t: 0,   p: [X, 15, zr(R0 - 8)],     a: [X, 30, zr(0)], fov: 60 },   // na porta do fundo
+      { t: .24, p: [X, 54, zr(rM)],         a: [X, 26, zr(0)], fov: 58 },   // passa por cima da mesa de som
+      { t: .5,  p: [X, 17, zr(R * 1.75)],    a: [X, 32, zr(0)], fov: 56 },   // desce o corredor entre as fileiras
+      { t: .66, p: [X, 18, zr(R * 1.25)],    a: [X, 34, zr(0)], fov: 54 },   // chegando às primeiras fileiras
+      { t: .84, p: [X, ALT - 20, zr(R * 2.3)], a: [X, 0, zr(R * .9)], fov: 62 }, // sobe olhando para baixo
+      { t: 1,   p: GERAL.cam.toArray(), a: GERAL.alvo.toArray(), fov: FOV_MAPA }
+    ];
+    let i = 0; while (i < K.length - 2 && t > K[i + 1].t) i++;
+    const A = K[i], B = K[i + 1]; let u = (t - A.t) / (B.t - A.t); u = u * u * (3 - 2 * u);
+    _p.fromArray(A.p).lerp(_a.fromArray(B.p), u); cam.position.copy(_p);
+    manual.alvo.fromArray(A.a).lerp(_a.fromArray(B.a), u);
+    cam.fov = A.fov + (B.fov - A.fov) * u; cam.updateProjectionMatrix();
+    tetoG.visible = cam.position.y < salaGeo.ALT + 10;
+  }
   function olharDe(px, py, pz, tx, ty, tz, fov) { vista = null; selos_visiveis(false); mostrarNumeros(null); ambiente(true); anim = null; ctr.enabled = false; manual = { alvo: new THREE.Vector3(tx, ty, tz) }; cam.position.set(px, py, pz); cam.fov = fov || 60; cam.updateProjectionMatrix(); }
-  return { focar, visaoGeral, abrirSetor, vistaDaCadeira, sairDaVista, olharDe, naVista: () => !!vista, atualizar() { pintar(destaqueAtual); }, setorAberto: () => setorAberto, destruir() { vivo = false; obs.disconnect(); ctr.dispose(); renderer.dispose(); renderer.domElement.remove(); } };
+  return { focar, visaoGeral, abrirSetor, vistaDaCadeira, sairDaVista, olharDe, percurso, pausar(b) { pausado = !!b; }, naVista: () => !!vista, atualizar() { pintar(destaqueAtual); }, setorAberto: () => setorAberto, destruir() { vivo = false; obs.disconnect(); ctr.dispose(); renderer.dispose(); renderer.domElement.remove(); } };
 }
