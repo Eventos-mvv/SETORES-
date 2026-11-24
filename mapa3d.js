@@ -607,6 +607,13 @@ export function criarMapa3D(el, opts) {
     renderer.render(cena, cam);
   })(ini);
 
-  if (opts.alvo) focar(opts.alvo.setor, opts.alvo.num, opts.semAnimacao ? 1 : 1500); else visaoGeral(1);
+  if (opts.alvo) focar(opts.alvo.setor, opts.alvo.num, opts.semAnimacao ? 1 : 1500);
+  else if (opts.entrada) {
+    // chegada pelo alto: a câmera começa bem acima da igreja e desce até a vista do auditório inteiro
+    visaoGeral(1);
+    const d = GERAL.cam.distanceTo(GERAL.alvo);
+    cam.position.set(GERAL.alvo.x, GERAL.alvo.y + d * 2.2, GERAL.alvo.z + d * .25); ctr.target.copy(GERAL.alvo);
+    voar(GERAL.alvo.clone(), GERAL.cam.clone(), 2800);
+  } else visaoGeral(1);
   return { focar, visaoGeral, abrirSetor, vistaDaCadeira, sairDaVista, naVista: () => !!vista, atualizar() { pintar(destaqueAtual); }, setorAberto: () => setorAberto, destruir() { vivo = false; obs.disconnect(); ctr.dispose(); renderer.dispose(); renderer.domElement.remove(); } };
 }

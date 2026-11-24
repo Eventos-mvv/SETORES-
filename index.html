@@ -364,6 +364,31 @@ button.avatar:hover{background:var(--marca-h)}
 .leg-part i.vendida.sala{background:#2e3033}
 .leg-part i.livre{background:var(--vazia3d)}
 .leg-part i.livre.sala{background:#b9bcc2}
+/* Abertura: entrada na igreja */
+.abertura{position:fixed;inset:0;z-index:80;background:#0d0a0b;overflow:hidden;transition:opacity .7s ease}
+.abertura.saindo{opacity:0;pointer-events:none}
+.ab-fundo{position:absolute;inset:-40px;background-size:cover;background-position:center;filter:blur(28px) brightness(.55)}
+.abertura video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+@media (min-aspect-ratio:4/5){.abertura video{object-fit:contain}}
+.ab-texto{position:absolute;left:0;right:0;bottom:0;padding:90px 24px calc(34px + env(safe-area-inset-bottom));background:linear-gradient(0deg,rgba(13,10,11,.85),rgba(13,10,11,0));color:#fff;display:grid;gap:2px}
+.ab-texto small{font-size:13px;font-weight:700;color:#f3c9d1}
+.ab-texto b{font-size:clamp(30px,8vw,46px);font-weight:800;letter-spacing:-.02em;line-height:1.05}
+.ab-texto span{font-size:15px;font-weight:600;color:#e8d9db}
+.ab-barra{position:absolute;left:24px;right:24px;bottom:calc(18px + env(safe-area-inset-bottom));height:3px;border-radius:2px;background:rgba(255,255,255,.22);overflow:hidden}
+.ab-barra i{display:block;height:100%;width:0;background:#fff;border-radius:2px}
+.ab-pular{position:absolute;top:calc(16px + env(safe-area-inset-top));right:16px;min-height:44px;padding:0 18px;border-radius:999px;background:rgba(255,255,255,.16);color:#fff;font-weight:800;font-size:15px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.ab-pular:hover{background:rgba(255,255,255,.26)}
+/* Explorar o auditório */
+#explorarPainel{position:relative}
+#explore3d{aspect-ratio:4/3}
+@media (min-width:720px){#explore3d{aspect-ratio:16/10}}
+.ex-cadeira{position:absolute;left:12px;right:12px;bottom:12px;z-index:2;display:flex;align-items:center;gap:12px;justify-content:space-between;flex-wrap:wrap;background:var(--sup);border-radius:18px;padding:12px 12px 12px 16px;box-shadow:0 10px 30px rgba(36,24,26,.18)}
+.ex-cadeira b{display:block;font-size:17px;font-weight:800}
+.ex-cadeira span{display:block;font-size:14px;font-weight:700;color:var(--txt-3)}
+.ex-cadeira span.ok{color:var(--ok)}.ex-cadeira span.livre{color:var(--txt-2)}
+.ex-cadeira .btn{display:inline-flex;align-items:center;gap:8px}
+.ex-cadeira .btn svg{width:18px;height:18px}
+#exVoltar{background:rgba(255,255,255,.94);color:var(--marca);box-shadow:0 8px 24px rgba(0,0,0,.18)}
 /* Vista da cadeira */
 #part3dPainel{position:relative}
 .btn-vista{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);display:inline-flex;align-items:center;gap:8px;height:46px;padding:0 20px;border-radius:999px;background:var(--marca);color:#fff;font-weight:800;font-size:15px;box-shadow:0 8px 24px rgba(123,30,43,.35);white-space:nowrap;z-index:2}
@@ -451,6 +476,13 @@ import('./mapa3d.js').then(function(m){ window.Mapa3D = m; }).catch(function(e){
       </div>
       <div id="sugestoesPart" aria-live="polite"></div>
       <div id="resultadoPart"></div>
+      <div class="painel oculto" style="margin-top:20px" id="explorarPainel">
+        <div class="painel-cab"><h2 id="exTit">O auditório</h2><p id="exDica">Toque num setor</p></div>
+        <div class="leg-part"><span><i class="vendida" id="exLegVendida"></i>Vendida</span><span><i class="livre" id="exLegLivre"></i>Disponível</span><span><i style="background:var(--ok)"></i>Presente</span></div>
+        <div class="vista3d" id="explore3d"></div>
+        <div class="ex-cadeira oculto" id="exCadeira"><div><b id="exCod"></b><span id="exSit"></span></div><button class="btn btn-pri" type="button" id="exVer"><svg><use href="#i-olho"/></svg>Ver desta cadeira</button></div>
+        <button class="btn-vista oculto" type="button" id="exVoltar"><svg><use href="#i-olho"/></svg><span>Voltar ao mapa</span></button>
+      </div>
     </section>
 
     <section id="painelEquipe" class="oculto" style="margin-top:20px">
@@ -711,7 +743,7 @@ function abrirEvento(id){
   atualizarCabecalho();ouvirParticipantes();
   var s=ler('mvv_sessao_'+id);
   if(s&&s.nome&&s.setor&&(s.setor==='SUPERVISOR'?ehSupervisor(s.nome):EV.setores.indexOf(s.setor)>=0))iniciarSessao(s);
-  else{trocarAba(location.hash==='#equipe'?'equipe':'part');mostrar('telaEntrada');}
+  else{trocarAba(location.hash==='#equipe'?'equipe':'part');mostrar('telaEntrada');iniciarEntrada();}
 }
 function atualizarCabecalho(){
   if(!EV)return;var loc=LOCAIS[EV.local];
@@ -736,6 +768,7 @@ function montar(fonte,origem){
     l.sort(function(a,b){return a.num-b.num;});porSetor[s]=l;
   });
   P.porSetor=porSetor;P.porChave=porChave;P.todos=todos;P.fonte=origem;
+  if(typeof EXP!=='undefined'&&EXP)EXP.atualizar();
 }
 function ouvirParticipantes(){
   var evId=EV.id;
@@ -817,16 +850,68 @@ function trocarAba(q){var p=q==='part';$('abaPart').setAttribute('aria-selected'
 $('abaPart').addEventListener('click',function(){trocarAba('part');});
 $('abaEquipe').addEventListener('click',function(){trocarAba('equipe');});
 
-var bp=$('buscaPart'),partMapa3d=null,PP={ref:null,pres:{}};
+var EXP=null,bp=$('buscaPart'),partMapa3d=null,PP={ref:null,pres:{}};
 /* situação de cada cadeira para o mapa do participante: vendida, disponível ou presente (ao vivo) */
 function ouvirPresencaPart(){
   if(PP.ref)return;
   PP.ref=db.ref(caminho('presenca'));
-  PP.ref.on('value',function(sn){var raw=sn.val()||{},o={};Object.keys(raw).forEach(function(s){var m=lerPresenca(raw[s]);Object.keys(m).forEach(function(k){o[k]=m[k];});});PP.pres=o;if(partMapa3d)partMapa3d.atualizar();},function(e){console.error(e);});
+  PP.ref.on('value',function(sn){var raw=sn.val()||{},o={};Object.keys(raw).forEach(function(s){var m=lerPresenca(raw[s]);Object.keys(m).forEach(function(k){o[k]=m[k];});});PP.pres=o;if(partMapa3d)partMapa3d.atualizar();if(EXP)EXP.atualizar();},function(e){console.error(e);});
 }
 function pararPresencaPart(){if(PP.ref){PP.ref.off();PP.ref=null;}PP.pres={};}
+/* ===== Explorar o auditório: setor, cadeira e vista, sem mostrar nomes ===== */
+var exAtual=null;
+function situacao(k){var e=estadoPart(k.split('-')[0],+k.split('-')[1]);return e==='presente'?['Presente','ok']:e==='vazia'?['Disponível','livre']:['Vendida',''];}
+function abrirExplorar(entrada){
+  if(EXP||$('resultadoPart').innerHTML)return;
+  var pn=$('explorarPainel');pn.classList.remove('oculto');$('exCadeira').classList.add('oculto');$('exVoltar').classList.add('oculto');
+  ouvirPresencaPart();
+  com3D(function(M){
+    if(EXP||$('resultadoPart').innerHTML)return;
+    var el=$('explore3d');el.innerHTML='';
+    try{EXP=M.criarMapa3D(el,{local:local(),setores:EV.setores,estado:estadoPart,entrada:!!entrada,
+      aoMudar:function(info){
+        var naVista=!!(info&&info.vista);
+        $('exVoltar').classList.toggle('oculto',!naVista);
+        $('exLegVendida').classList.toggle('sala',naVista);$('exLegLivre').classList.toggle('sala',naVista);
+        if(naVista){$('exCadeira').classList.add('oculto');$('exTit').textContent='Vista da cadeira\u00a0'+exAtual.replace('-','\u2011');$('exDica').textContent='Arraste para olhar em volta';return;}
+        if(!info){exAtual=null;$('exCadeira').classList.add('oculto');$('exTit').textContent='O auditório';$('exDica').textContent='Toque num setor';return;}
+        $('exTit').textContent='Setor '+info.setor;$('exDica').textContent=info.num==null?'Toque numa cadeira':'Arraste para girar';
+        if(info.num==null)$('exCadeira').classList.add('oculto');
+      },
+      aoTocarCadeira:function(st,n){
+        exAtual=st+'-'+n;var pos=posicao(st,n),sit=situacao(exAtual);
+        $('exCod').textContent='Setor '+st+(pos?', fileira '+pos.fileira:'')+', cadeira '+n;
+        $('exSit').textContent=sit[0];$('exSit').className=sit[1];
+        $('exCadeira').classList.remove('oculto');
+      }});
+    }catch(e){console.error(e);pn.classList.add('oculto');}
+  },function(){pn.classList.add('oculto');});
+}
+function fecharExplorar(){if(EXP){EXP.destruir();EXP=null;}exAtual=null;$('explorarPainel').classList.add('oculto');$('explore3d').innerHTML='';}
+$('exVer').addEventListener('click',function(){if(EXP&&exAtual){var a=exAtual.split('-');EXP.vistaDaCadeira(a[0],+a[1]);}});
+$('exVoltar').addEventListener('click',function(){if(EXP)EXP.sairDaVista();});
+
+/* ===== Abertura: o vídeo de quem entra no auditório, só na primeira vez ===== */
+function iniciarEntrada(){
+  var forcar=/[?&]entrada=1/.test(location.search),visto=!forcar&&ler('mvv_abertura_v1'),reduz=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if(visto||reduz||location.hash==='#equipe'){abrirExplorar(false);return;}
+  var ab=$('abertura'),v=$('abVideo'),fim=false;
+  $('abNome').textContent=EV&&EV.nome&&EV.nome!=='Evento atual'?EV.nome:'Setores';
+  function encerrar(){
+    if(fim)return;fim=true;guardar('mvv_abertura_v1',1);
+    ab.classList.add('saindo');try{v.pause();}catch(e){}
+    abrirExplorar(true);
+    setTimeout(function(){ab.classList.add('oculto');ab.classList.remove('saindo');v.removeAttribute('src');v.load();},750);
+  }
+  ab.classList.remove('oculto');v.muted=true;v.src='entrada.mp4';
+  v.ontimeupdate=function(){if(v.duration)$('abProg').style.width=(v.currentTime/v.duration*100)+'%';};
+  v.onended=encerrar;v.onerror=encerrar;
+  $('abPular').onclick=encerrar;
+  var p=v.play();if(p&&p.catch)p.catch(function(){setTimeout(encerrar,1200);});
+  setTimeout(encerrar,12000);
+}
 function estadoPart(st,n){var k=st+'-'+n;if(!P.porChave[k])return 'vazia';var e=PP.pres[k];return e&&e.presente?'presente':'vendida';}
-function limparPart3d(){$('telaEntrada').classList.remove('lado');pararPresencaPart();if(partMapa3d){partMapa3d.destruir();partMapa3d=null;}}
+function limparPart3d(){$('telaEntrada').classList.remove('lado');if(!EXP)pararPresencaPart();if(partMapa3d){partMapa3d.destruir();partMapa3d=null;}}
 function sugerir(){
   var q=bp.value,box=$('sugestoesPart');$('limparPart').classList.toggle('oculto',!q);
   if(P.fonte==='carregando'){box.innerHTML=q?'<div class="carreg"><span class="giro"></span>Carregando a lista</div>':'';return;}
@@ -839,10 +924,10 @@ function sugerir(){
 bp.addEventListener('input',atraso(function(){limparPart3d();$('resultadoPart').innerHTML='';sugerir();},90));
 bp.addEventListener('keydown',function(e){if(e.key!=='Enter')return;e.preventDefault();var s=$('sugestoesPart').querySelectorAll('.sug');if(s.length===1)mostrarPart(s[0].getAttribute('data-k'));else if(s.length)s[0].focus();});
 $('sugestoesPart').addEventListener('click',function(e){var b=e.target.closest('.sug');if(b)mostrarPart(b.getAttribute('data-k'));});
-$('limparPart').addEventListener('click',function(){limparPart3d();bp.value='';$('resultadoPart').innerHTML='';sugerir();bp.focus();});
+$('limparPart').addEventListener('click',function(){limparPart3d();bp.value='';$('resultadoPart').innerHTML='';sugerir();bp.focus();abrirExplorar(false);});
 
 function mostrarPart(k){
-  var p=P.porChave[k];if(!p)return;window.__partK=k;var pos=posicao(p.setor,p.num);
+  var p=P.porChave[k];if(!p)return;fecharExplorar();window.__partK=k;var pos=posicao(p.setor,p.num);
   $('sugestoesPart').innerHTML='';bp.value=p.exib;$('limparPart').classList.remove('oculto');
   var r=$('resultadoPart');$('telaEntrada').classList.add('lado');
   r.innerHTML='<div class="frase"><div class="quem">'+esc(p.exib.split(' ')[0])+', seu lugar é</div>'
@@ -871,7 +956,7 @@ function mostrarPart(k){
         bv.addEventListener('click',function(){if(partMapa3d.naVista())partMapa3d.sairDaVista();else partMapa3d.vistaDaCadeira(p.setor,p.num);});}
     }catch(e){console.error(e);em2D();}
   },em2D);
-  $('outroNome').addEventListener('click',function(){limparPart3d();bp.value='';r.innerHTML='';sugerir();bp.focus();window.scrollTo({top:0,behavior:'smooth'});});
+  $('outroNome').addEventListener('click',function(){limparPart3d();bp.value='';r.innerHTML='';sugerir();bp.focus();window.scrollTo({top:0,behavior:'smooth'});abrirExplorar(false);});
   bp.blur();
 }
 
@@ -891,7 +976,7 @@ $('btnEntrar').addEventListener('click',entrarEquipe);
 var sessao=null;
 function iniciarSessao(s){sessao=s;guardar('mvv_sessao_'+EV.id,s);if(s.setor==='SUPERVISOR')abrirSup();else abrirOp();atualizarCabecalho();}
 function sairSessao(){guardar('mvv_sessao_'+EV.id,null);pararOp();pararSup();fecharFicha();sessao=null;trocarAba('equipe');mostrar('telaEntrada');}
-function pararTudo(){limparPart3d();pararOp();pararSup();fecharFicha();sessao=null;if(refPart)refPart.off();if(refMeta)refMeta.off();refPart=refMeta=null;ultimoValor=null;}
+function pararTudo(){fecharExplorar();limparPart3d();pararOp();pararSup();fecharFicha();sessao=null;if(refPart)refPart.off();if(refMeta)refMeta.off();refPart=refMeta=null;ultimoValor=null;}
 
 var con=false,jaCon=false;
 db.ref('.info/connected').on('value',function(s){
@@ -1192,6 +1277,13 @@ function iniciar(){
 }
 })();
 </script>
+<div class="abertura oculto" id="abertura" aria-label="Entrada na igreja">
+  <div class="ab-fundo" style="background-image:url(entrada.jpg)"></div>
+  <video id="abVideo" muted playsinline preload="auto" poster="entrada.jpg"></video>
+  <div class="ab-texto"><small>Ministério Verbo da Vida</small><b id="abNome">Setores</b><span>Entrando no auditório</span></div>
+  <div class="ab-barra"><i id="abProg"></i></div>
+  <button class="ab-pular" type="button" id="abPular">Pular</button>
+</div>
 <div class="menu-perfil oculto" id="menuPerfil" role="menu" aria-label="Sua conta">
   <div class="perfil-topo"><span class="avatar grande" id="perfilIni" aria-hidden="true"></span><div><b id="perfilNome"></b><small id="perfilFuncao"></small></div></div>
   <button type="button" role="menuitem" id="perfilSair"><svg><use href="#i-sair"/></svg>Sair</button>
