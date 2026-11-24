@@ -776,6 +776,8 @@ export function criarMapa3D(el, opts) {
     cam.fov = A.fov + (B.fov - A.fov) * u; cam.updateProjectionMatrix();
     tetoG.visible = cam.position.y < salaGeo.ALT + 10;
   }
+  // fim do percurso: a mesma cena vira o mapa de sempre (setores coloridos, toque no setor e na cadeira)
+  function liberar() { if (!noPercurso) return; noPercurso = false; tetoG.visible = true; visaoGeral(1); }
   function olharDe(px, py, pz, tx, ty, tz, fov) { vista = null; selos_visiveis(false); mostrarNumeros(null); ambiente(true); anim = null; ctr.enabled = false; manual = { alvo: new THREE.Vector3(tx, ty, tz) }; cam.position.set(px, py, pz); cam.fov = fov || 60; cam.updateProjectionMatrix(); }
-  return { focar, visaoGeral, abrirSetor, vistaDaCadeira, sairDaVista, olharDe, percurso, pausar(b) { pausado = !!b; }, naVista: () => !!vista, atualizar() { pintar(destaqueAtual); }, setorAberto: () => setorAberto, destruir() { vivo = false; obs.disconnect(); ctr.dispose(); renderer.dispose(); renderer.domElement.remove(); } };
+  return { focar, visaoGeral, abrirSetor, vistaDaCadeira, sairDaVista, olharDe, percurso, liberar, livre: () => !noPercurso, pausar(b) { pausado = !!b; }, naVista: () => !!vista, atualizar() { pintar(destaqueAtual); }, setorAberto: () => setorAberto, destruir() { vivo = false; obs.disconnect(); ctr.dispose(); renderer.dispose(); renderer.domElement.remove(); } };
 }
