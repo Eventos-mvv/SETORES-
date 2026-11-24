@@ -9,6 +9,14 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+// caixa com cantos arredondados: tira a cara de "bloco" das peças da sala
+function caixaGeo(w, h, d) { const r = Math.min(.8, Math.min(w, h, d) * .18); return r < .08 ? new THREE.BoxGeometry(w, h, d) : new RoundedBoxGeometry(w, h, d, 2, r); }
 
 const BASE_CLARO = { piso: 0xffffff, plataforma: 0xeceaf0, plataformaFora: 0xf6f5f8, cadeiraFora: 0xe4e1e8, palco: 0x3a3238, palcoTopo: 0x4a4048, alvo: 0xf0a20b, vazia: 0xb9b2bb, presente: 0x2f9a62, sombra: .10, ceu: 0xf1eaec, salaPiso: 0xe2d8da, salaParede: 0xd8c8cc, telao: 0x2a2226 };
 const BASE_ESCURO = { piso: 0x151011, plataforma: 0x3a3135, plataformaFora: 0x262022, cadeiraFora: 0x463c41, palco: 0x5b4f56, palcoTopo: 0x6c5f67, alvo: 0xf0a20b, vazia: 0x5e5459, presente: 0x3bb174, sombra: .35, ceu: 0x161112, salaPiso: 0x221b1d, salaParede: 0x2c2326, telao: 0x0d0a0b };
@@ -447,7 +455,7 @@ export function criarMapa3D(el, opts) {
     const caixotao = tela(256, 256, (g, w, h) => { g.fillStyle = '#f4f4f1'; g.fillRect(0, 0, w, h); g.fillStyle = '#e2e2de'; g.fillRect(26, 26, w - 52, h - 52); g.strokeStyle = 'rgba(0,0,0,.05)'; for (let x = 26; x < w - 26; x += 25) { g.beginPath(); g.moveTo(x, 26); g.lineTo(x, h - 26); g.stroke(); } }, [WH / 60, DH / 60]);
     const tetoH = new THREE.Mesh(new THREE.PlaneGeometry(WH, DH), new THREE.MeshBasicMaterial({ map: caixotao }));
     tetoH.rotation.x = Math.PI / 2; tetoH.position.set(XH, HH, zMid); sala.add(tetoH);
-    const bloco = (w, h, d, mat, x, y, z) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); m.position.set(x, y, z); sala.add(m); return m; };
+    const bloco = (w, h, d, mat, x, y, z) => { const m = new THREE.Mesh(caixaGeo(w, h, d), mat); m.position.set(x, y, z); sala.add(m); return m; };
     // paredes laterais do hall
     [-1, 1].forEach(l => bloco(3, HH, DH, branco, XH + l * WH / 2, HH / 2, zMid));
     // parede entre hall e nave, com o vão das portas no centro
@@ -551,7 +559,7 @@ export function criarMapa3D(el, opts) {
     const preto2 = new THREE.MeshStandardMaterial({ color: 0x18171a, roughness: .55, metalness: .2 });
     const metal = new THREE.MeshStandardMaterial({ color: 0xb8bcc2, roughness: .3, metalness: .9 });
     const vidro = new THREE.MeshStandardMaterial({ color: 0xdde6ee, roughness: .05, metalness: .1, transparent: true, opacity: .22, depthWrite: false });
-    const caixa = (w, h, d, mat, x, y, z) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); m.position.set(x, y, z); m.castShadow = true; sala.add(m); return m; };
+    const caixa = (w, h, d, mat, x, y, z) => { const m = new THREE.Mesh(caixaGeo(w, h, d), mat); m.position.set(x, y, z); m.castShadow = true; sala.add(m); return m; };
     const zFrente = pc.z0 != null ? pc.z0 : pc.z - 60, zMeio = (zFrente + ZF) / 2;
     // púlpito de acrílico e mesinha
     caixa(6.4, 11, 4, vidro, pc.x, TOPO + 5.5, zFrente + 34); caixa(7, .4, 4.6, vidro, pc.x, TOPO + 11.2, zFrente + 34);
@@ -650,7 +658,24 @@ export function criarMapa3D(el, opts) {
     });
     const brilho = new THREE.PointLight(0xe6b4a8, 1.2, 0, 0); brilho.position.set(pc.x, 60, ZF - 40); sala.add(brilho);
   }
+  let composer = null, gtao = null, posAtivo = false, posDesligado = false, tQuadros = [];
+  function montarPos() {
+    if (composer || posDesligado) return;
+    try {
+      const w = el.clientWidth || 300, h = el.clientHeight || 300;
+      composer = new EffectComposer(renderer);
+      composer.addPass(new RenderPass(cena, cam));
+      gtao = new GTAOPass(cena, cam, w, h); gtao.output = GTAOPass.OUTPUT.Default;
+      gtao.updateGtaoMaterial({ radius: 6, distanceExponent: 1.4, thickness: 2, scale: 1.2, samples: 12 });
+      gtao.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 6, rings: 2, samples: 12 });
+      composer.addPass(gtao);
+      composer.addPass(new UnrealBloomPass(new THREE.Vector2(w, h), .3, .45, .96));
+      composer.addPass(new OutputPass());
+      composer.setSize(w, h);
+    } catch (e) { console.warn('pós-processamento indisponível', e); composer = null; posDesligado = true; }
+  }
   function tomRealista(on) {
+    if (on) montarPos(); posAtivo = on && !!composer;
     if (on && !ambienteEnv) { const pm = new THREE.PMREMGenerator(renderer); ambienteEnv = pm.fromScene(new RoomEnvironment(), .04).texture; pm.dispose(); }
     renderer.toneMapping = on ? THREE.ACESFilmicToneMapping : THREE.NoToneMapping; renderer.toneMappingExposure = 1.05;
     cena.environment = on ? ambienteEnv : null; hemi.intensity = on ? .95 : 1.35;
@@ -658,7 +683,7 @@ export function criarMapa3D(el, opts) {
   }
   function ambiente(on) {
     sala.visible = on; chao.visible = !on; corSala = on; instDet.visible = on; inst.visible = !on;
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, on ? 1.5 : 2)); tamanho(); pintar(destaqueAtual); tomRealista(on);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, on ? 1.25 : 2)); tamanho(); pintar(destaqueAtual); tomRealista(on);
     // plataformas dos setores viram carpete na vista
     if (on && !carpPlat) { carpPlat = new THREE.TextureLoader().load('tex/carpete.jpg'); carpPlat.colorSpace = THREE.SRGBColorSpace; carpPlat.wrapS = carpPlat.wrapT = THREE.RepeatWrapping; carpPlat.repeat.set(1 / 50, 1 / 25); }
     Object.values(plataformas).forEach(m => { if (!m.userData.cor) m.userData.cor = m.material.color.getHex();
@@ -756,6 +781,7 @@ export function criarMapa3D(el, opts) {
   function tamanho() {
     const w = el.clientWidth || 300, h = el.clientHeight || 300;
     renderer.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix();
+    if (composer) { composer.setPixelRatio(renderer.getPixelRatio()); composer.setSize(w, h); }
     const d = distancia(MEIO_LARG, PROF);
     GERAL.cam.copy(posCam(GERAL.alvo, d)); ctr.maxDistance = d * 1.25;
   }
@@ -777,7 +803,11 @@ export function criarMapa3D(el, opts) {
       if (vista && !anim) manual.alvo.copy(vista.olho).add(direcaoVista().multiplyScalar(100));
       cam.lookAt(manual.alvo);
     } else ctr.update();
-    renderer.render(cena, cam);
+    if (posAtivo && sala.visible) {
+      // se o aparelho não aguentar (quadros acima de 45 ms), volta para a renderização simples
+      const t0 = performance.now(); composer.render(); tQuadros.push(performance.now() - t0);
+      if (tQuadros.length > 40) { const m = tQuadros.reduce((a, b) => a + b, 0) / tQuadros.length; tQuadros = []; if (m > 45 && !window.__forcarPos) { posAtivo = false; posDesligado = true; } }
+    } else renderer.render(cena, cam);
   })(ini);
 
   if (opts.alvo) focar(opts.alvo.setor, opts.alvo.num, opts.semAnimacao ? 1 : 1500);
@@ -830,5 +860,5 @@ export function criarMapa3D(el, opts) {
   // fim do percurso: a mesma cena vira o mapa de sempre (setores coloridos, toque no setor e na cadeira)
   function liberar() { if (!noPercurso) return; noPercurso = false; tetoG.visible = true; visaoGeral(1); }
   function olharDe(px, py, pz, tx, ty, tz, fov) { vista = null; selos_visiveis(false); mostrarNumeros(null); ambiente(true); anim = null; ctr.enabled = false; manual = { alvo: new THREE.Vector3(tx, ty, tz) }; cam.position.set(px, py, pz); cam.fov = fov || 60; cam.updateProjectionMatrix(); }
-  return { focar, visaoGeral, abrirSetor, vistaDaCadeira, sairDaVista, olharDe, percurso, liberar, livre: () => !noPercurso, pausar(b) { pausado = !!b; }, naVista: () => !!vista, atualizar() { pintar(destaqueAtual); }, setorAberto: () => setorAberto, destruir() { vivo = false; obs.disconnect(); ctr.dispose(); renderer.dispose(); renderer.domElement.remove(); } };
+  return { focar, visaoGeral, abrirSetor, vistaDaCadeira, sairDaVista, olharDe, percurso, liberar, livre: () => !noPercurso, pausar(b) { pausado = !!b; }, naVista: () => !!vista, atualizar() { pintar(destaqueAtual); }, setorAberto: () => setorAberto, destruir() { vivo = false; obs.disconnect(); ctr.dispose(); if (composer) composer.dispose(); renderer.dispose(); renderer.domElement.remove(); } };
 }
