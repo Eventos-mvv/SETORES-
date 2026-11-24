@@ -322,7 +322,7 @@ export function criarMapa3D(el, opts) {
   // enquadramento: cabe o auditório inteiro na largura e na altura da área
   const ELEV = 52 * Math.PI / 180, MEIO_LARG = Math.max(Math.abs(limites.x0), Math.abs(limites.x1)) + 30, PROF = Math.max(60, limites.z1) - limites.z0;
   function distancia(meioLarg, prof) {
-    const vf = cam.fov * Math.PI / 360, hf = Math.atan(Math.tan(vf) * cam.aspect);
+    const vf = FOV_MAPA * Math.PI / 360, hf = Math.atan(Math.tan(vf) * cam.aspect); // sempre o campo de visão do mapa, mesmo durante a entrada
     return Math.max(meioLarg / Math.tan(hf), (prof * Math.sin(ELEV) * .5 + 40) / Math.tan(vf)) * 1.04;
   }
   function posCam(alvo, d, dx = 0) { return new THREE.Vector3(alvo.x + dx, alvo.y + d * Math.sin(ELEV), alvo.z + d * Math.cos(ELEV)); }
@@ -766,15 +766,24 @@ export function criarMapa3D(el, opts) {
       { t: .48, p: [X, 54, zr(rM)],            a: [X, 26, zr(0)], fov: 58 },    // por cima da mesa de som
       { t: .64, p: [X, 17, zr(R * 1.75)],    a: [X, 32, zr(0)], fov: 56 },   // desce o corredor entre as fileiras
       { t: .76, p: [X, 18, zr(R * 1.25)],    a: [X, 34, zr(0)], fov: 54 },   // chegando às primeiras fileiras
-      { t: .9,  p: [X, ALT - 20, zr(R * 2.3)], a: [X, 0, zr(R * .9)], fov: 62 }, // sobe olhando para baixo
+      { t: .83, p: [X, 70, zr(R * 2.3)], a: [X, 14, zr(R * .6)], fov: 58 },   // recua pelo corredor subindo, ainda olhando o palco de frente
       { t: 1,   p: GERAL.cam.toArray(), a: GERAL.alvo.toArray(), fov: FOV_MAPA }
     ];
     let i = 0; while (i < K.length - 2 && t > K[i + 1].t) i++;
     const A = K[i], B = K[i + 1]; let u = (t - A.t) / (B.t - A.t); u = u * u * (3 - 2 * u);
-    _p.fromArray(A.p).lerp(_a.fromArray(B.p), u); cam.position.copy(_p);
     manual.alvo.fromArray(A.a).lerp(_a.fromArray(B.a), u);
+    if (i === K.length - 2) {
+      // último trecho: sobe girando em arco em volta do auditório até a vista de cima (sem cruzar por cima do palco)
+      const c = GERAL.alvo, oA = new THREE.Spherical().setFromVector3(_p.fromArray(A.p).sub(c)), oB = new THREE.Spherical().setFromVector3(_a.copy(GERAL.cam).sub(c));
+      let dT = oB.theta - oA.theta; while (dT > Math.PI) dT -= 2 * Math.PI; while (dT < -Math.PI) dT += 2 * Math.PI;
+      const phi = Math.max(.05, oA.phi + (oB.phi - oA.phi) * u - .3 * Math.sin(Math.PI * u));
+      const sp = new THREE.Spherical(oA.radius + (oB.radius - oA.radius) * u, phi, oA.theta + dT * u);
+      cam.position.setFromSpherical(sp).add(c);
+    } else { _p.fromArray(A.p).lerp(_a.fromArray(B.p), u); cam.position.copy(_p); }
     cam.fov = A.fov + (B.fov - A.fov) * u; cam.updateProjectionMatrix();
     tetoG.visible = cam.position.y < salaGeo.ALT + 10;
+    // na subida final, acima do teto, a sala (palco, paredes, treliça) sai de cena e ficam só os setores
+    const dentro = cam.position.y < salaGeo.ALT - 25; sala.visible = dentro; chao.visible = !dentro;
   }
   // fim do percurso: a mesma cena vira o mapa de sempre (setores coloridos, toque no setor e na cadeira)
   function liberar() { if (!noPercurso) return; noPercurso = false; tetoG.visible = true; visaoGeral(1); }
