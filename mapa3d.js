@@ -217,11 +217,17 @@ export function criarMapa3D(el, opts) {
   });
   // opts.estado(setor, num) -> 'presente' | 'vazia' | outro: pinta quem chegou de verde e cadeira sem reserva de cinza
   const VERDE = new THREE.Color(BASE.presente), VAZIA = new THREE.Color(BASE.vazia), GRAFITE = new THREE.Color(0x45484c);
+  // na vista da cadeira: vendida = grafite escuro (bloqueada), disponível = cinza claro, presente = verde, a sua = dourada
+  const VENDIDA_SALA = new THREE.Color(0x2e3033), LIVRE_SALA = new THREE.Color(0xb9bcc2), OURO = new THREE.Color(BASE.alvo);
   let destaqueAtual = null, corSala = false;
   function pintar(destaque) {
     destaqueAtual = destaque;
     lista.forEach((c, i) => {
-      if (corSala) col.copy(GRAFITE);
+      if (corSala) {
+        const e = opts.estado ? opts.estado(c.k, c.num) : null;
+        if (vista && c.k === vista.setor && c.num === vista.num) col.copy(OURO);
+        else col.copy(e === 'presente' ? VERDE : e === 'vazia' ? LIVRE_SALA : e ? VENDIDA_SALA : GRAFITE);
+      }
       else if (c.fora) col.copy(cinza);
       else {
         const e = opts.estado ? opts.estado(c.k, c.num) : null;

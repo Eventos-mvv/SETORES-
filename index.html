@@ -356,6 +356,14 @@ button.avatar:hover{background:var(--marca-h)}
 .menu-perfil > button{display:flex;align-items:center;gap:10px;width:100%;padding:11px 12px;border-radius:12px;font-weight:700;font-size:15px;color:var(--erro)}
 .menu-perfil > button:hover{background:var(--sup-2)}
 .menu-perfil > button svg{width:18px;height:18px}
+/* Legenda do mapa do participante */
+.leg-part{display:flex;flex-wrap:wrap;gap:8px 16px;padding:0 20px 12px;font-weight:700;font-size:13.5px;color:var(--txt-2)}
+.leg-part span{display:inline-flex;align-items:center;gap:7px}
+.leg-part i{width:14px;height:14px;border-radius:4px;flex-shrink:0}
+.leg-part i.vendida{background:linear-gradient(135deg,#c2416b 0 33%,#7b4fc9 33% 66%,#2f7fd6 66%)}
+.leg-part i.vendida.sala{background:#2e3033}
+.leg-part i.livre{background:var(--vazia3d)}
+.leg-part i.livre.sala{background:#b9bcc2}
 /* Vista da cadeira */
 #part3dPainel{position:relative}
 .btn-vista{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);display:inline-flex;align-items:center;gap:8px;height:46px;padding:0 20px;border-radius:999px;background:var(--marca);color:#fff;font-weight:800;font-size:15px;box-shadow:0 8px 24px rgba(123,30,43,.35);white-space:nowrap;z-index:2}
@@ -809,8 +817,16 @@ function trocarAba(q){var p=q==='part';$('abaPart').setAttribute('aria-selected'
 $('abaPart').addEventListener('click',function(){trocarAba('part');});
 $('abaEquipe').addEventListener('click',function(){trocarAba('equipe');});
 
-var bp=$('buscaPart'),partMapa3d=null;
-function limparPart3d(){$('telaEntrada').classList.remove('lado');if(partMapa3d){partMapa3d.destruir();partMapa3d=null;}}
+var bp=$('buscaPart'),partMapa3d=null,PP={ref:null,pres:{}};
+/* situação de cada cadeira para o mapa do participante: vendida, disponível ou presente (ao vivo) */
+function ouvirPresencaPart(){
+  if(PP.ref)return;
+  PP.ref=db.ref(caminho('presenca'));
+  PP.ref.on('value',function(sn){var raw=sn.val()||{},o={};Object.keys(raw).forEach(function(s){var m=lerPresenca(raw[s]);Object.keys(m).forEach(function(k){o[k]=m[k];});});PP.pres=o;if(partMapa3d)partMapa3d.atualizar();},function(e){console.error(e);});
+}
+function pararPresencaPart(){if(PP.ref){PP.ref.off();PP.ref=null;}PP.pres={};}
+function estadoPart(st,n){var k=st+'-'+n;if(!P.porChave[k])return 'vazia';var e=PP.pres[k];return e&&e.presente?'presente':'vendida';}
+function limparPart3d(){$('telaEntrada').classList.remove('lado');pararPresencaPart();if(partMapa3d){partMapa3d.destruir();partMapa3d=null;}}
 function sugerir(){
   var q=bp.value,box=$('sugestoesPart');$('limparPart').classList.toggle('oculto',!q);
   if(P.fonte==='carregando'){box.innerHTML=q?'<div class="carreg"><span class="giro"></span>Carregando a lista</div>':'';return;}
@@ -832,7 +848,7 @@ function mostrarPart(k){
   r.innerHTML='<div class="frase"><div class="quem">'+esc(p.exib.split(' ')[0])+', seu lugar é</div>'
     +'<div class="onde num">setor <b>'+p.setor+'</b> '+(pos?'fileira <b>'+pos.fileira+'</b> ':'')+'cadeira <b>'+p.num+'</b></div>'
     +'<div class="dica">A fileira é contada a partir do palco.</div></div>'
-    +'<div class="painel" style="margin-top:20px" id="part3dPainel"><div class="painel-cab"><h2 id="part3dTit">Seu lugar no auditório</h2><p id="part3dDica">Arraste para girar</p></div><div class="vista3d" id="part3d"><div class="carreg"><span class="giro"></span>Abrindo o mapa</div></div><button class="btn-vista oculto" type="button" id="btnVista"><svg><use href="#i-olho"/></svg><span>Ver da minha cadeira</span></button></div>'
+    +'<div class="painel" style="margin-top:20px" id="part3dPainel"><div class="painel-cab"><h2 id="part3dTit">Seu lugar no auditório</h2><p id="part3dDica">Arraste para girar</p></div><div class="leg-part" id="legPart"><span><i style="background:#f0a20b"></i>Sua cadeira</span><span><i class="vendida" id="legVendida"></i>Vendida</span><span><i class="livre" id="legLivre"></i>Disponível</span><span><i style="background:var(--ok)"></i>Presente</span></div><div class="vista3d" id="part3d"><div class="carreg"><span class="giro"></span>Abrindo o mapa</div></div><button class="btn-vista oculto" type="button" id="btnVista"><svg><use href="#i-olho"/></svg><span>Ver da minha cadeira</span></button></div>'
     +'<div id="part2d"></div>'
     +'<button class="btn btn-sec btn-bloco" type="button" id="outroNome" style="margin-top:16px">Buscar outro nome</button>';
   if(partMapa3d){partMapa3d.destruir();partMapa3d=null;}
@@ -843,12 +859,14 @@ function mostrarPart(k){
   };
   com3D(function(M){
     var el=$('part3d');if(!el)return;el.innerHTML='';
-    try{partMapa3d=M.criarMapa3D(el,{local:local(),setores:EV.setores,alvo:{setor:p.setor,num:p.num},
+    ouvirPresencaPart();
+    try{partMapa3d=M.criarMapa3D(el,{local:local(),setores:EV.setores,alvo:{setor:p.setor,num:p.num},estado:estadoPart,
       aoMudar:function(info){var naVista=!!(info&&info.vista);
         $('part3dTit').textContent=naVista?'Vista da cadeira\u00a0'+p.chave.replace('-','\u2011'):'Seu lugar no auditório';
         $('part3dDica').textContent=naVista?'Arraste para olhar em volta':'Arraste para girar';
         $('btnVista').querySelector('span').textContent=naVista?'Voltar ao mapa':'Ver da minha cadeira';
-        $('btnVista').classList.toggle('na-vista',naVista);}});
+        $('btnVista').classList.toggle('na-vista',naVista);
+        $('legVendida').classList.toggle('sala',naVista);$('legLivre').classList.toggle('sala',naVista);}});
       if(partMapa3d.vistaDaCadeira){var bv=$('btnVista');bv.classList.remove('oculto');
         bv.addEventListener('click',function(){if(partMapa3d.naVista())partMapa3d.sairDaVista();else partMapa3d.vistaDaCadeira(p.setor,p.num);});}
     }catch(e){console.error(e);em2D();}
