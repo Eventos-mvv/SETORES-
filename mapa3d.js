@@ -567,22 +567,29 @@ export function criarMapa3D(el, opts) {
     [-.3, .3, .38].forEach(f => caixa(.25, 14, .25, metal, pc.x + (pc.x1 - pc.x0) * f, TOPO + 7, zMeio));
     // degraus na frente do palco, com fita de LED
     const fita = new THREE.MeshBasicMaterial({ color: 0xffe2a8, toneMapped: false });
-    // escada em "V" de carpete cinza, 6 degraus, corrimão de inox e caixas pretas com luzinhas quadradas nos lados
-    { const N = 6, hD = TOPO / N, pD = 3.2, ang = .5, larg0 = 30;
+    // escadas em "V" de carpete cinza nas duas laterais da frente do palco (como na planta e nas fotos):
+    // 6 degraus, corrimão de inox e caixas pretas com luzinhas quadradas dos dois lados de cada escada
+    { const N = 6, hD = TOPO / N, pD = 3.2, ang = .5, larg0 = 22;
       const carpEsc = new THREE.MeshStandardMaterial({ map: foto('carpete.jpg', 2, 1), color: 0x9a9a9a, roughness: 1 });
-      for (let i = 0; i < N; i++) {
-        const h = hD * (i + 1), recua = (N - 1 - i) * pD, w = larg0 + recua * 1.6, zp = zFrente - 1 - recua;
-        [-1, 1].forEach(l => { const d = new THREE.Mesh(new THREE.BoxGeometry(w / 2, h, pD + 1), carpEsc);
-          d.position.set(pc.x + l * (w / 4) * Math.cos(ang), h / 2, zp - (w / 4) * Math.sin(ang)); d.rotation.y = -l * ang; d.castShadow = d.receiveShadow = true; sala.add(d); });
-      }
       const inox = new THREE.MeshStandardMaterial({ color: 0xd8dbe0, roughness: .2, metalness: 1 });
-      const x0 = pc.x + 3, zA = zFrente - 1 - (N - 1) * pD - 4, zB = zFrente + 2;
-      [[zA, 0], [zB, TOPO]].forEach(([z, y]) => caixa(.5, 9, .5, inox, x0, y + 4.5, z));
-      const bar = new THREE.Mesh(new THREE.CylinderGeometry(.25, .25, Math.hypot(zB - zA, TOPO), 10), inox);
-      bar.position.set(x0, 9 + TOPO / 2, (zA + zB) / 2); bar.rotation.x = Math.atan2(zB - zA, TOPO) * (zB > zA ? 1 : -1); sala.add(bar);
       const luzQ = new THREE.MeshBasicMaterial({ color: 0xfff1d0, toneMapped: false });
-      [-1, 1].forEach(l => { const bxx = pc.x + l * 38; caixa(22, TOPO, 10, preto2, bxx, TOPO / 2, zFrente - 4);
-        for (let k = 0; k < 3; k++) { const q = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 1.1), luzQ); q.position.set(bxx - l * 6 + l * k * 3, TOPO * (.3 + k * .25), zFrente - 9.1); q.rotation.y = Math.PI; sala.add(q); } });
+      const peca = (g, geo, mat, x, y, z, ry) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); if (ry) m.rotation.y = ry; m.castShadow = m.receiveShadow = true; g.add(m); return m; };
+      const escada = () => {   // origem na beira do palco; os degraus descem para -z (plateia)
+        const g = new THREE.Group();
+        for (let k = 0; k < N; k++) {
+          const h = hD * (k + 1), recua = (N - 1 - k) * pD, w = larg0 + recua * 1.6, zp = -1 - recua;
+          [-1, 1].forEach(l => peca(g, new THREE.BoxGeometry(w / 2, h, pD + 1), carpEsc, l * (w / 4) * Math.cos(ang), h / 2, zp - (w / 4) * Math.sin(ang), -l * ang));
+        }
+        const zA = -1 - (N - 1) * pD - 4, zB = 2;
+        [[zA, 0], [zB, TOPO]].forEach(([z, y]) => peca(g, new THREE.BoxGeometry(.5, 9, .5), inox, 2, y + 4.5, z));
+        const bar = peca(g, new THREE.CylinderGeometry(.25, .25, Math.hypot(zB - zA, TOPO), 10), inox, 2, 9 + TOPO / 2, (zA + zB) / 2);
+        bar.rotation.x = Math.atan2(zB - zA, TOPO);
+        [-1, 1].forEach(l => { peca(g, new THREE.BoxGeometry(14, TOPO, 8), preto2, l * 20, TOPO / 2, -3);
+          for (let q = 0; q < 3; q++) { const m = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 1.1), luzQ); m.position.set(l * 20 - l * 4 + l * q * 2.5, TOPO * (.3 + q * .25), -7.1); m.rotation.y = Math.PI; g.add(m); } });
+        return g;
+      };
+      const meia = (pc.x1 - pc.x0) / 2;
+      [-1, 1].forEach(l => { const e = escada(); e.position.set(pc.x + l * meia * .62, 0, zFrente + 10); e.rotation.y = l * .62; sala.add(e); });
     }
     // treliça com refletores sobre o palco
     const yTr = ALT - 26, zTr = zFrente + 6;
