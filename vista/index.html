@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<title>Setores | Escolha sua cadeira</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:opsz,wght@6..12,400;6..12,600;6..12,700;6..12,800&display=swap" rel="stylesheet"/>
+<style>
+:root{--marca:#7b1e2b;--ink:#24181a;--ink2:#5e4c4f;--ink3:#8a7476;--sup:#fff;--livre:#d9dde3;--vendida:#7b1e2b;--presente:#2f9e5b}
+*{box-sizing:border-box;margin:0;padding:0;min-width:0}
+html,body{height:100%;overflow:hidden;background:#111;color:var(--ink);font:16px/1.45 'Nunito Sans',system-ui,sans-serif;-webkit-font-smoothing:antialiased;overscroll-behavior:none}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+button:focus-visible{outline:3px solid #f3c9d1;outline-offset:2px}
+#cena{position:fixed;inset:0}
+#cena canvas{display:block;width:100%;height:100%;touch-action:none}
+.carreg{position:fixed;inset:0;display:grid;place-items:center;color:#cbbcbe;font-weight:700;z-index:1}
+.oculto{opacity:0;visibility:hidden;transition:opacity .4s,visibility 0s .4s}
+.visivel{opacity:1;visibility:visible;transition:opacity .4s}
+.etiqueta{position:fixed;left:16px;top:max(16px,env(safe-area-inset-top));z-index:6;background:rgba(255,255,255,.95);border-radius:14px;padding:9px 14px;font-size:17px;font-weight:800;line-height:1.25;box-shadow:0 6px 18px rgba(0,0,0,.2);max-width:calc(100% - 32px)}
+.etiqueta small{display:block;font-size:13px;font-weight:600;color:var(--ink3)}
+.barra{position:fixed;left:0;right:0;top:0;height:3px;background:rgba(255,255,255,.15);z-index:7}
+.barra i{display:block;height:100%;width:0;background:#fff}
+.rolar{position:fixed;left:50%;bottom:calc(92px + env(safe-area-inset-bottom));transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:6px;color:#fff;font-weight:800;font-size:15px;text-shadow:0 2px 10px rgba(0,0,0,.6);z-index:6;pointer-events:none}
+.rolar i{width:22px;height:34px;border:2.5px solid #fff;border-radius:12px;position:relative}
+.rolar i::after{content:'';position:absolute;left:50%;top:6px;width:4px;height:7px;margin-left:-2px;border-radius:2px;background:#fff;animation:desce 1.4s ease-in-out infinite}
+@keyframes desce{0%{transform:translateY(0);opacity:1}100%{transform:translateY(11px);opacity:0}}
+.baixo{position:fixed;left:0;right:0;bottom:calc(16px + env(safe-area-inset-bottom));display:flex;justify-content:center;gap:8px;flex-wrap:wrap;padding:0 12px;z-index:6;pointer-events:none}
+.baixo>*{pointer-events:auto}
+.baixo.oculto>*{pointer-events:none}
+.pilula{min-height:46px;padding:0 18px;border-radius:999px;font-weight:800;font-size:14.5px;background:rgba(255,255,255,.96);color:var(--marca);box-shadow:0 8px 22px rgba(0,0,0,.25)}
+.pilula.forte{background:var(--marca);color:#fff}
+#pinos{position:fixed;inset:0;z-index:4;pointer-events:none}
+.pino{position:absolute;left:0;top:0;transform:translate(-50%,-100%);display:flex;flex-direction:column;align-items:center;transition:opacity .3s;opacity:0}
+.pino b{display:grid;place-items:center;min-width:34px;height:34px;padding:0 8px;border-radius:999px;background:var(--marca);color:#fff;font-weight:800;font-size:15px;box-shadow:0 0 0 3px rgba(255,255,255,.9),0 8px 20px rgba(0,0,0,.35);transition:transform .15s}
+.pino.real b{background:#fff;color:var(--marca);box-shadow:0 0 0 3px var(--marca),0 8px 20px rgba(0,0,0,.35)}
+.pino i{width:2px;height:12px;background:rgba(255,255,255,.9)}
+.pino:hover b{transform:scale(1.08)}
+.dica{position:fixed;left:50%;top:max(80px,calc(env(safe-area-inset-top) + 70px));transform:translateX(-50%);z-index:6;background:rgba(36,24,26,.85);color:#fff;border-radius:999px;padding:8px 16px;font-size:14px;font-weight:700;white-space:nowrap}
+.painel{position:fixed;z-index:8;left:0;right:0;bottom:0;max-height:60vh;background:var(--sup);border-radius:22px 22px 0 0;box-shadow:0 -12px 40px rgba(0,0,0,.35);display:flex;flex-direction:column;transform:translateY(105%);transition:transform .45s cubic-bezier(.2,.8,.2,1)}
+.painel.on{transform:none}
+@media(min-width:900px){.painel{left:auto;right:16px;top:16px;bottom:16px;width:440px;max-height:none;border-radius:22px;transform:translateX(110%)}.painel.on{transform:none}}
+.pTopo{display:flex;align-items:center;gap:10px;padding:14px 16px 8px}
+.pTopo h2{font-size:20px;font-weight:800;line-height:1.2;flex:1}
+.pTopo h2 small{display:block;font-size:13px;font-weight:600;color:var(--ink3)}
+.fechar{width:40px;height:40px;border-radius:12px;background:#f4eef0;color:var(--marca);font-weight:800;font-size:22px;line-height:1}
+.leg{display:flex;gap:14px;padding:0 16px 8px;font-size:13px;font-weight:700;color:var(--ink2)}
+.leg span{display:inline-flex;align-items:center;gap:6px}
+.leg i{width:12px;height:12px;border-radius:50%}
+.mapaS{flex:1;overflow:auto;padding:4px 10px 14px;-webkit-overflow-scrolling:touch}
+.palco{margin:4px auto 12px;width:70%;max-width:280px;height:26px;border-radius:0 0 50% 50%/0 0 100% 100%;background:#2a2224;color:#fff;font-size:12px;font-weight:800;display:grid;place-items:center}
+.fila{display:flex;align-items:center;justify-content:center;gap:3px;margin:0 auto 4px;width:max-content;min-width:100%}
+.fila em{font-style:normal;font-size:11px;font-weight:800;color:var(--ink3);width:20px;text-align:center;flex:none}
+.cad{width:24px;height:24px;border-radius:7px 7px 9px 9px;background:var(--livre);color:#4a3f41;font-size:9.5px;font-weight:800;display:grid;place-items:center;flex:none}
+.cad.vendida{background:var(--vendida);color:#fff;opacity:.85}
+.cad.presente{background:var(--presente);color:#fff}
+.cad.sel{outline:3px solid #f0a20b;outline-offset:1px}
+.pRodape{border-top:1px solid #f1e6e7;padding:12px 16px calc(12px + env(safe-area-inset-bottom));display:flex;gap:10px;align-items:center}
+.pRodape p{flex:1;font-weight:800;font-size:15px;line-height:1.25}
+.pRodape p small{display:block;font-weight:600;font-size:12.5px;color:var(--ink3)}
+.btn{min-height:48px;padding:0 18px;border-radius:14px;font-weight:800;font-size:15px;background:var(--marca);color:#fff;box-shadow:0 8px 22px rgba(123,30,43,.3)}
+.btn[disabled]{opacity:.35;box-shadow:none;cursor:default}
+.nota{position:fixed;right:14px;top:max(14px,env(safe-area-inset-top));max-width:min(300px,45%);background:rgba(36,24,26,.85);color:#fff;border-radius:12px;padding:8px 11px;font-size:12.5px;font-weight:600;line-height:1.35;z-index:6}
+@media(max-width:640px){.nota{left:14px;right:auto;top:auto;bottom:calc(80px + env(safe-area-inset-bottom));max-width:calc(100% - 28px)}}
+@media (prefers-reduced-motion:reduce){.rolar i::after{animation:none}}
+.chips{position:fixed;left:0;right:0;bottom:calc(14px + env(safe-area-inset-bottom));z-index:6;display:flex;gap:8px;overflow-x:auto;padding:4px 14px;scrollbar-width:none;justify-content:safe center}
+.chips::-webkit-scrollbar{display:none}
+.chips button{flex:none;min-width:44px;height:44px;padding:0 12px;border-radius:999px;background:rgba(36,24,26,.82);color:#fff;font-weight:800;font-size:15px}
+.chips button.real{background:#fff;color:var(--marca);box-shadow:inset 0 0 0 2.5px var(--marca)}
+</style>
+<script src="../locais.js"></script>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}</script>
+</head>
+<body>
+<div id="cena"></div>
+<div class="carreg" id="carreg">Abrindo a igreja</div>
+
+<div class="barra visivel" id="barra"><i id="barraP"></i></div>
+<div class="etiqueta oculto" id="etq"></div>
+<div class="rolar oculto" id="rolar"><span>Role para entrar</span><i></i></div>
+<div id="pinos"></div>
+<div class="chips oculto" id="chips" aria-label="Setores"></div>
+<div class="dica oculto" id="dica">Toque no setor na foto ou na lista abaixo</div>
+
+<div class="baixo visivel" id="baixoEntrada"><button type="button" class="pilula" id="btnPular">Pular entrada</button></div>
+<div class="baixo oculto" id="baixoVista">
+  <button type="button" class="pilula" id="btnGiro" hidden>Mexer o celular</button>
+  <button type="button" class="pilula forte" id="btnVoltarSetor">Escolher outra cadeira</button>
+</div>
+<div class="nota oculto" id="nota"></div>
+
+<section class="painel" id="painel" aria-label="Cadeiras do setor">
+  <div class="pTopo"><h2 id="pTitulo"></h2><button type="button" class="fechar" id="btnFechar" aria-label="Voltar aos setores">×</button></div>
+  <div class="leg"><span><i style="background:var(--livre)"></i>Livre</span><span><i style="background:var(--vendida)"></i>Vendida</span><span><i style="background:var(--presente)"></i>Presente</span></div>
+  <div class="mapaS" id="mapaS"></div>
+  <div class="pRodape"><p id="pSel"></p><button type="button" class="btn" id="btnVista" disabled>Ver a vista</button></div>
+</section>
+
+<script type="module">
+import * as THREE from 'three';
+const $ = id => document.getElementById(id);
+const mostrar = (id, sim) => { const e = $(id); e.classList.toggle('visivel', !!sim); e.classList.toggle('oculto', !sim); };
+const loc = window.LOCAIS['verbo-cg'];
+const SETORES = Object.keys(loc.setores).filter(s => (loc.setores[s].fileiras || []).length);
+
+// situação de exemplo (na versão final vem do Firebase)
+function hash(s) { let h = 2166136261; for (const c of s) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); } return (h >>> 0) / 4294967296; }
+function estado(s, n) { const r = hash(s + n); return r < .38 ? 'vazia' : r < .5 ? 'presente' : 'vendida'; }
+const NOME = { vazia: 'Livre', presente: 'Já chegou alguém', vendida: 'Vendida' };
+function fileira(s, n) { const r = loc.setores[s].fileiras; for (let i = 0; i < r.length; i++) if (r[i].indexOf(n) >= 0) return r.length - i; return null; }
+
+// panoramas reais de cada setor (fileira onde foi tirado e onde o palco aparece na foto)
+const PANOS = {
+  A: [{ fil: 1, arq: 'fotos/A-1.jpg', palcoX: .63 }, { fil: 5, arq: 'fotos/A-5.jpg', palcoX: .61 }, { fil: 12, arq: 'fotos/A-ult.jpg', palcoX: .54, ultima: true }],
+  B: [{ fil: 1, arq: 'fotos/B-1.jpg', palcoX: .6 }, { fil: 5, arq: 'fotos/B-5.jpg', palcoX: .5 }, { fil: 12, arq: 'fotos/B-ult.jpg', palcoX: .4, ultima: true }],
+  C: [{ fil: 1, arq: 'fotos/C-1.jpg', palcoX: .5 }, { fil: 6, arq: 'fotos/C-6.jpg', palcoX: .71 }, { fil: 12, arq: 'fotos/C-ult.jpg', palcoX: .46, ultima: true }],
+  D: [{ fil: 1, arq: 'fotos/D-1.jpg', palcoX: .74 }, { fil: 5, arq: 'fotos/D-5.jpg', palcoX: .7 }],
+  E: [{ fil: 1, arq: 'fotos/E-1.jpg', palcoX: .63 }, { fil: 5, arq: 'fotos/E-5.jpg', palcoX: .6 }, { fil: 12, arq: 'fotos/E-ult.jpg', palcoX: .63, ultima: true }],
+  F: [{ fil: 1, arq: 'fotos/F-1.jpg', palcoX: .66 }, { fil: 5, arq: 'fotos/F-5.jpg', palcoX: .83 }, { fil: 12, arq: 'fotos/F-11.jpg', palcoX: .76, ultima: true }]
+};
+function fotoMaisPerto(s, n) {
+  const lista = PANOS[s]; if (!lista) return null;
+  const fil = fileira(s, n); let m = lista[0];
+  lista.forEach(f => { if (Math.abs(f.fil - fil) < Math.abs(m.fil - fil)) m = f; });
+  return { ...m, perto: Math.abs(m.fil - fil) <= 1 };
+}
+
+// ===== motor de panoramas =====
+const R = 100;
+const cenaEl = $('cena');
+const rend = new THREE.WebGLRenderer({ antialias: true });
+rend.setPixelRatio(Math.min(devicePixelRatio || 1, 2)); rend.outputColorSpace = THREE.SRGBColorSpace; rend.autoClear = false;
+cenaEl.appendChild(rend.domElement);
+const cena = new THREE.Scene();
+const cam = new THREE.PerspectiveCamera(60, 1, .1, 1000);
+const cache = {};
+function carregar(arq, v = 58) {
+  if (cache[arq]) return Promise.resolve(cache[arq]);
+  return new Promise(ok => new THREE.TextureLoader().load(arq, t => {
+    t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
+    const asp = t.image.width / t.image.height, arco = Math.min(Math.PI * 2 - .01, asp * 2 * Math.tan(v / 2 * Math.PI / 180)), alt = R * arco / asp;
+    const geo = new THREE.CylinderGeometry(R, R, alt, 96, 1, true, Math.PI - arco / 2, arco); geo.scale(-1, 1, 1);
+    const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: t, transparent: true, depthWrite: false, depthTest: false }));
+    m.visible = false; m.userData = { arco, alt, vRad: 2 * Math.atan(alt / 2 / R) }; cena.add(m);
+    cache[arq] = m; ok(m);
+  }));
+}
+// aponta a câmera para o ponto (u, v) de uma foto com a abertura pedida
+function apontar(c) {
+  const m = c.m, d = m.userData;
+  m.rotation.y = (c.u - .5) * d.arco; m.updateMatrixWorld();
+  cam.fov = Math.min(c.fov, d.vRad * 180 / Math.PI - .5); cam.updateProjectionMatrix();
+  cam.lookAt(0, ((.5 - c.v) * d.alt) / R, -1); cam.updateMatrixWorld();
+}
+// desenha camadas, cada uma com seu próprio zoom (é o que deixa a passagem contínua)
+function desenhar(camadas) {
+  rend.clear();
+  camadas.forEach(c => {
+    if (!c || !c.m || c.op <= 0) return;
+    c.m.visible = true; c.m.material.opacity = c.op; apontar(c);
+    rend.render(cena, cam); c.m.visible = false;
+  });
+}
+function tamanho() { const w = cenaEl.clientWidth || 300, h = cenaEl.clientHeight || 300; rend.setSize(w, h, false); cam.aspect = w / h; }
+new ResizeObserver(tamanho).observe(cenaEl); tamanho();
+const retrato = () => cenaEl.clientWidth < cenaEl.clientHeight;
+const suave = k => k * k * (3 - 2 * k);
+const lerp = (a, b, k) => a + (b - a) * k;
+
+// ===== 1. entrada rolando, como um plano-sequência =====
+const F_HALL = 'fotos/hall.jpg', F_PORTA = 'fotos/hall-porta.jpg', F_NAVE = 'fotos/nave-entrada.jpg';
+const fovSalao = () => retrato() ? 70 : 64;
+// a câmera só avança: a foto de trás continua aproximando enquanto a da frente entra no mesmo tamanho
+const TRECHOS = [
+  { p: [0, .30], a: { f: F_HALL, u: [.30, .645], v: [.5, .5], fov: [56, 27] } },
+  { p: [.30, .40], a: { f: F_HALL, u: [.645, .645], v: [.5, .5], fov: [27, 15] }, b: { f: F_PORTA, u: [.40, .40], v: [.5, .5], fov: [33, 19] } },
+  { p: [.40, .58], a: { f: F_PORTA, u: [.40, .40], v: [.5, .5], fov: [19, 16] } },
+  { p: [.58, .68], a: { f: F_PORTA, u: [.40, .40], v: [.5, .5], fov: [16, 12] }, b: { f: F_NAVE, u: [.5, .5], v: [.47, .47], fov: [30, 23] } },
+  { p: [.68, .80], a: { f: F_NAVE, u: [.5, .5], v: [.47, .48], fov: [23, 21] } },
+  { p: [.80, 1], a: { f: F_NAVE, u: [.5, .5], v: [.48, .52], fov: [21, null] } }
+];
+const TITULOS = [[0, 'Hall de entrada', 'Sede Campina Grande'], [.34, 'Porta da nave', 'Continue rolando'], [.64, 'A nave', 'Entrada, em cima da rampa'], [.9, 'Escolha seu setor', 'Toque no setor na foto']];
+let modo = 'entrada', pE = 0, pAlvo = 0;
+function quadroEntrada() {
+  pE += (pAlvo - pE) * .1; if (Math.abs(pAlvo - pE) < .0004) pE = pAlvo;
+  const p = pE, t = TRECHOS.find(x => p <= x.p[1]) || TRECHOS[TRECHOS.length - 1];
+  const k = Math.max(0, Math.min(1, (p - t.p[0]) / (t.p[1] - t.p[0])));
+  const camada = (c, op) => ({ m: cache[c.f], u: lerp(c.u[0], c.u[1], k), v: lerp(c.v[0], c.v[1], suave(k)), fov: lerp(c.fov[0], c.fov[1] ?? fovSalao(), suave(k)), op });
+  if (t.b) {
+    desenhar([camada(t.a, 1), camada(t.b, suave(k))]);
+    rend.domElement.style.filter = `blur(${(Math.sin(k * Math.PI) * 2.2).toFixed(2)}px)`;
+  } else { desenhar([camada(t.a, 1)]); rend.domElement.style.filter = ''; }
+  $('barraP').style.width = (p * 100) + '%';
+  let ti = TITULOS[0]; TITULOS.forEach(x => { if (p >= x[0]) ti = x; });
+  $('etq').innerHTML = ti[1] + (ti[2] ? '<small>' + ti[2] + '</small>' : '');
+  if (p > .02) mostrar('rolar', false);
+  if (p >= .995) abrirSalao();
+}
+function avancar(d) { if (modo === 'entrada') pAlvo = Math.max(0, Math.min(1, pAlvo + d)); }
+addEventListener('wheel', e => { if (modo === 'entrada') { e.preventDefault(); avancar(e.deltaY / 2600); } }, { passive: false });
+let toqueY = null;
+addEventListener('touchstart', e => { if (modo === 'entrada') toqueY = e.touches[0].clientY; }, { passive: true });
+addEventListener('touchmove', e => { if (modo !== 'entrada' || toqueY == null) return; e.preventDefault(); const y = e.touches[0].clientY; avancar((toqueY - y) / (innerHeight * 2.8)); toqueY = y; }, { passive: false });
+addEventListener('keydown', e => {
+  if (modo === 'entrada') { if (['ArrowDown', 'PageDown', ' '].includes(e.key)) { e.preventDefault(); avancar(.07); } if (['ArrowUp', 'PageUp'].includes(e.key)) { e.preventDefault(); avancar(-.07); } }
+  if (e.key === 'Escape') { if (modo === 'vista') voltarSetor(); else if (modo === 'setor') fecharSetor(); }
+});
+$('btnPular').addEventListener('click', () => { pAlvo = 1; });
+
+// ===== 2. escolher o setor na foto real =====
+// posição de cada setor na foto da entrada da nave, calculada pela planta
+const CAM = { x: 460, y: 20 }, V0 = .479, KV = 12.3;
+function naFoto(px, py) {
+  const dx = px - CAM.x, dy = py - CAM.y;
+  return { u: .5 - Math.atan2(dx, dy) / cache[F_NAVE].userData.arco, v: V0 + KV / Math.hypot(dx, dy) };
+}
+let vis = null, alvo = null, trans = null;
+const pinos = {};
+function criarPinos() {
+  SETORES.forEach(s => {
+    const [x, y] = loc.setores[s].rotulo, q = naFoto(x, y);
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'pino' + (PANOS[s] ? ' real' : '');
+    b.innerHTML = `<b>${s}</b><i></i>`; b.setAttribute('aria-label', 'Setor ' + s);
+    b.addEventListener('click', () => abrirSetor(s));
+    $('pinos').appendChild(b); pinos[s] = { el: b, ...q };
+    const c = document.createElement('button'); c.type = 'button'; c.textContent = s; if (PANOS[s]) c.className = 'real'; c.setAttribute('aria-label', 'Setor ' + s); c.addEventListener('click', () => abrirSetor(s)); $('chips').appendChild(c);
+  });
+}
+const vec = new THREE.Vector3();
+function posicionarPinos(ativo) {
+  const m = cache[F_NAVE], d = m.userData, w = cenaEl.clientWidth, h = cenaEl.clientHeight;
+  if (ativo) apontar(vis);
+  Object.values(pinos).forEach(p => {
+    let ok = false;
+    if (ativo) {
+      const th = (p.u - .5) * d.arco;
+      vec.set(R * Math.sin(th), (.5 - p.v) * d.alt, -R * Math.cos(th)).applyMatrix4(m.matrixWorld).project(cam);
+      ok = vec.z < 1 && Math.abs(vec.x) < .97 && vec.y < .9 && vec.y > -.95;
+      p.el.style.left = ((vec.x + 1) / 2 * w) + 'px'; p.el.style.top = ((1 - vec.y) / 2 * h) + 'px';
+    }
+    p.el.style.opacity = ok ? '1' : '0'; p.el.style.pointerEvents = ok && modo === 'salao' ? 'auto' : 'none';
+  });
+}
+function abrirSalao() {
+  if (modo !== 'entrada') return;
+  modo = 'salao'; rend.domElement.style.filter = '';
+  vis = { m: cache[F_NAVE], u: .5, v: .52, fov: fovSalao(), op: 1 };
+  mostrar('baixoEntrada', false); mostrar('barra', false); mostrar('rolar', false);
+  $('etq').innerHTML = 'Escolha seu setor<small>Os de fundo branco já têm a vista real</small>';
+  mostrar('dica', true); setTimeout(() => mostrar('dica', false), 6000); mostrar('chips', true);
+}
+let arr = null;
+rend.domElement.addEventListener('pointerdown', e => { if (modo !== 'salao' && modo !== 'vista') return; arr = { x: e.clientX, y: e.clientY, u: vis.u, v: vis.v }; rend.domElement.setPointerCapture(e.pointerId); });
+rend.domElement.addEventListener('pointermove', e => {
+  if (!arr) return; const d = vis.m.userData, k = (vis.fov * Math.PI / 180) / (cenaEl.clientHeight || 300);
+  vis.u = arr.u - (e.clientX - arr.x) * k / d.arco; vis.v = arr.v - (e.clientY - arr.y) * k / d.vRad; prender();
+});
+['pointerup', 'pointercancel'].forEach(t => rend.domElement.addEventListener(t, () => { arr = null; }));
+function prender() {
+  const d = vis.m.userData, vf = Math.min(vis.fov, d.vRad * 180 / Math.PI - .5) * Math.PI / 180, hf = 2 * Math.atan(Math.tan(vf / 2) * cam.aspect);
+  const mu = Math.max(0, (d.arco - hf) / 2 / d.arco), mv = Math.max(0, (d.vRad - vf) / 2 / d.vRad);
+  vis.u = Math.max(.5 - mu, Math.min(.5 + mu, vis.u)); vis.v = Math.max(.5 - mv, Math.min(.5 + mv, vis.v));
+}
+
+// ===== 3. setor: a foto aproxima e abrem as cadeiras =====
+let setorAtual = null, cadSel = null;
+function enquadrar(s) { const p = pinos[s], r = retrato(); return { u: p.u + (r ? 0 : .045), v: p.v + (r ? .07 : .015), fov: r ? 34 : 28 }; }
+function abrirSetor(s) {
+  setorAtual = s; cadSel = null; modo = 'setor'; alvo = enquadrar(s);
+  $('etq').innerHTML = `Setor ${s}<small>${PANOS[s] ? 'Tem vista real' : 'Vista real em breve'}</small>`;
+  montarCadeiras(s); $('painel').classList.add('on'); mostrar('dica', false); mostrar('chips', false);
+}
+function fecharSetor() {
+  $('painel').classList.remove('on'); modo = 'salao'; alvo = { u: .5, v: .52, fov: fovSalao() }; mostrar('chips', true);
+  $('etq').innerHTML = 'Escolha seu setor<small>Os de fundo branco já têm a vista real</small>';
+}
+function montarCadeiras(s) {
+  const fil = loc.setores[s].fileiras, total = fil.length;
+  $('pTitulo').innerHTML = `Setor ${s}<small>${total} fileiras</small>`;
+  // fileira 1 (perto do palco) em cima; esquerda e direita como de quem olha para o palco
+  let h = '<div class="palco">PALCO</div>';
+  for (let i = total - 1; i >= 0; i--) {
+    const n = total - i, nums = fil[i].slice().reverse();
+    h += `<div class="fila"><em>${n}</em>` + nums.map(c => { const st = estado(s, c); return `<button type="button" class="cad ${st}" data-n="${c}" aria-label="Fileira ${n}, cadeira ${c}, ${NOME[st]}">${c}</button>`; }).join('') + `<em>${n}</em></div>`;
+  }
+  const f = $('mapaS'); f.innerHTML = h; f.scrollTop = 0;
+  const centrar = () => { f.scrollLeft = (f.scrollWidth - f.clientWidth) / 2; }; centrar(); requestAnimationFrame(centrar); setTimeout(centrar, 480);
+  atualizarSel();
+}
+$('mapaS').addEventListener('click', e => {
+  const b = e.target.closest('.cad'); if (!b) return;
+  $('mapaS').querySelectorAll('.sel').forEach(x => x.classList.remove('sel'));
+  b.classList.add('sel'); cadSel = +b.dataset.n; atualizarSel();
+});
+function atualizarSel() {
+  const btn = $('btnVista');
+  if (!cadSel) { $('pSel').innerHTML = 'Toque numa cadeira<small>O palco fica em cima</small>'; btn.disabled = true; btn.textContent = 'Ver a vista'; return; }
+  $('pSel').innerHTML = `Fileira ${fileira(setorAtual, cadSel)}, cadeira ${cadSel}<small>${NOME[estado(setorAtual, cadSel)]}</small>`;
+  btn.disabled = !PANOS[setorAtual]; btn.textContent = PANOS[setorAtual] ? 'Ver a vista' : 'Vista em breve';
+}
+$('btnFechar').addEventListener('click', fecharSetor);
+
+// ===== 4. vista real da cadeira =====
+async function abrirVista() {
+  const f = fotoMaisPerto(setorAtual, cadSel); if (!f) return;
+  const m = await carregar(f.arq, 58);
+  $('painel').classList.remove('on'); modo = 'vista'; alvo = null;
+  const para = { m, u: f.palcoX, v: .5, fov: retrato() ? 62 : 56, op: 1 };
+  trans = { t0: performance.now(), dur: 950, de: { ...vis }, para }; vis = para;
+  $('etq').innerHTML = `Setor ${setorAtual}, fileira ${fileira(setorAtual, cadSel)}, cadeira ${cadSel}<small>${f.perto ? 'Foto real tirada nesta fileira' : f.ultima ? 'Foto real da última fileira deste setor' : 'Foto real da fileira ' + f.fil + ' deste setor'}</small>`;
+  $('nota').textContent = 'Arraste para olhar em volta.'; mostrar('nota', true); setTimeout(() => mostrar('nota', false), 4500);
+  mostrar('baixoVista', true);
+}
+$('btnVista').addEventListener('click', abrirVista);
+function voltarSetor() {
+  if (giro) alternarGiro();
+  mostrar('baixoVista', false); mostrar('nota', false);
+  const para = { m: cache[F_NAVE], ...enquadrar(setorAtual), op: 1 };
+  trans = { t0: performance.now(), dur: 750, de: { ...vis }, para, volta: true }; vis = para; modo = 'setor';
+  $('etq').innerHTML = `Setor ${setorAtual}<small>Escolha outra cadeira</small>`;
+  $('painel').classList.add('on');
+}
+$('btnVoltarSetor').addEventListener('click', voltarSetor);
+let giro = null;
+function aoGirar(e) {
+  if (e.alpha == null || modo !== 'vista') return;
+  if (!giro.base) giro.base = { a: e.alpha, b: e.beta, u: vis.u, v: vis.v };
+  let da = e.alpha - giro.base.a; if (da > 180) da -= 360; if (da < -180) da += 360;
+  const d = vis.m.userData; vis.u = giro.base.u - da * Math.PI / 180 / d.arco; vis.v = giro.base.v - (e.beta - giro.base.b) * Math.PI / 180 / d.vRad * .8; prender();
+}
+async function alternarGiro() {
+  if (giro) { removeEventListener('deviceorientation', aoGirar); giro = null; $('btnGiro').textContent = 'Mexer o celular'; return; }
+  try { if (typeof DeviceOrientationEvent !== 'undefined' && DeviceOrientationEvent.requestPermission) { const r = await DeviceOrientationEvent.requestPermission(); if (r !== 'granted') return; } } catch (_) { return; }
+  giro = {}; addEventListener('deviceorientation', aoGirar); $('btnGiro').textContent = 'Parar o movimento';
+}
+if (matchMedia('(pointer:coarse)').matches && 'DeviceOrientationEvent' in window) $('btnGiro').hidden = false;
+$('btnGiro').addEventListener('click', alternarGiro);
+
+// ===== laço =====
+function quadro(t) {
+  requestAnimationFrame(quadro);
+  if (modo === 'entrada') { quadroEntrada(); posicionarPinos(false); return; }
+  if (alvo) { const a = .09; vis.u += (alvo.u - vis.u) * a; vis.v += (alvo.v - vis.v) * a; vis.fov += (alvo.fov - vis.fov) * a; if (Math.abs(alvo.fov - vis.fov) < .05 && Math.abs(alvo.u - vis.u) < .0005) alvo = null; }
+  if (trans) {
+    // mergulho sem corte: a foto de onde sai continua aproximando, a de destino entra já aberta
+    const k = Math.min(1, (t - trans.t0) / trans.dur), e = suave(k), de = trans.de, pa = trans.para;
+    const s1 = trans.volta ? 1 + .6 * e : 1 - .55 * e, s2 = trans.volta ? 1 - .35 * (1 - e) : 1 + .5 * (1 - e);
+    desenhar([{ ...de, fov: de.fov * s1, op: 1 }, { ...pa, fov: pa.fov * s2, op: e }]);
+    rend.domElement.style.filter = `blur(${(Math.sin(k * Math.PI) * 2).toFixed(2)}px)`;
+    if (k >= 1) { trans = null; rend.domElement.style.filter = ''; }
+  } else desenhar([vis]);
+  posicionarPinos((modo === 'salao' || modo === 'setor') && !trans);
+}
+Promise.all([carregar(F_HALL), carregar(F_PORTA), carregar(F_NAVE, 70)]).then(() => {
+  $('carreg').remove(); criarPinos();
+  mostrar('etq', true); mostrar('rolar', true);
+  requestAnimationFrame(quadro);
+});
+window.__previa = { avancar, get pE() { return pE; }, abrirSetor, get modo() { return modo; }, escolher: n => { cadSel = n; atualizarSel(); }, abrirVista, voltarSetor };
+</script>
+</body>
+</html>
